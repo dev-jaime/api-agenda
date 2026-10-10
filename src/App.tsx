@@ -117,6 +117,10 @@ export default function App() {
   const [pgResponseStatus, setPgResponseStatus] = useState<number | null>(null);
   const [pgCurl, setPgCurl] = useState<string>('');
   
+  // External Public URL configured on Render
+  const [apiHostUrl, setApiHostUrl] = useState<string>('https://api-agenda-bl43.onrender.com');
+  const [urlMode, setUrlMode] = useState<'render' | 'local'>('render');
+  
   // Custom client ID and secret for custom bearer requests in playground
   const [pgClientId, setPgClientId] = useState('llm_client_id');
   const [pgClientSecret, setPgClientSecret] = useState('llm_client_secret');
@@ -239,7 +243,7 @@ export default function App() {
   // Update playground curl preview whenever options change
   useEffect(() => {
     generateCurl();
-  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret]);
+  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, urlMode]);
 
   const showBanner = (type: 'success' | 'error', msg: string) => {
     if (type === 'success') {
@@ -253,7 +257,10 @@ export default function App() {
 
   // Helper to generate curl preview
   const generateCurl = () => {
-    let curl = `curl -X ${pgMethod} "http://localhost:3000${pgEndpoint}"`;
+    const baseUrl = urlMode === 'render' 
+      ? apiHostUrl.replace(/\/+$/, '') 
+      : 'http://localhost:3000';
+    let curl = `curl -X ${pgMethod} "${baseUrl}${pgEndpoint}"`;
     
     // Auth headers
     if (pgAuthType === 'apikey') {
@@ -324,14 +331,20 @@ export default function App() {
         options.body = pgBody;
       }
 
-      const res = await fetch(pgEndpoint, options);
+      const targetBase = urlMode === 'render' ? apiHostUrl.replace(/\/+$/, '') : '';
+      const targetFullUrl = `${targetBase}${pgEndpoint}`;
+
+      const res = await fetch(targetFullUrl, options);
       setPgResponseStatus(res.status);
       const json = await res.json();
       setPgResponse(JSON.stringify(json, null, 2));
       
-      fetchData();
+      if (urlMode === 'local') {
+        fetchData();
+      }
     } catch (err: any) {
-      setPgResponse(`Erro ao executar requisição:\n${err.message}`);
+      const currentHost = urlMode === 'render' ? apiHostUrl : 'http://localhost:3000';
+      setPgResponse(`Erro ao executar requisição contra ${currentHost}:\n${err.message}\n\n(Dica: se a instância gratuita no Render estiver em hibernação, o primeiro cold start pode levar cerca de 50s. Você também pode alternar a chave para "💻 Localhost" para testar instantaneamente no preview).`);
     }
   };
 
@@ -640,8 +653,16 @@ export default function App() {
             <Server className="w-5 h-5 font-bold" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white font-mono">api_agenda</h1>
-            <p className="text-xs text-slate-400 font-medium">Ambiente Experimental Escuro de Homologação LLM</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight text-white font-mono">api_agenda</h1>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-4xs font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                RENDER PUBLIC
+              </span>
+            </div>
+            <p className="text-2xs text-slate-400 font-medium">
+              API Base: <code className="text-emerald-400 font-mono text-3xs font-bold">{apiHostUrl}</code>
+            </p>
           </div>
         </div>
 
@@ -1598,13 +1619,58 @@ export default function App() {
                 </div>
 
                 {/* cURL preview command */}
-                <div className="bg-slate-950 rounded-xl p-5 text-white font-mono text-xs space-y-2 relative shadow-2xl border border-slate-900">
-                  <span className="text-4xs text-slate-500 uppercase tracking-widest block border-b border-slate-900 pb-1.5">Comando cURL Equivalente</span>
-                  <pre className="overflow-x-auto text-2xs leading-relaxed text-slate-300 max-h-48 whitespace-pre-wrap">{pgCurl}</pre>
+                <div className="bg-slate-950 rounded-xl p-5 text-white font-mono text-xs space-y-3 relative shadow-2xl border border-slate-900">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-900 pb-2">
+                    <span className="text-4xs text-slate-400 uppercase tracking-widest block font-bold">
+                      Comando cURL Externo (Pronto para Uso)
+                    </span>
+                    
+                    {/* Host selector switch */}
+                    <div className="flex items-center gap-1.5 bg-slate-900 p-0.5 rounded border border-slate-800">
+                      <button
+                        onClick={() => setUrlMode('render')}
+                        className={`px-2 py-0.5 text-3xs rounded font-bold transition-colors ${
+                          urlMode === 'render' 
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Usar URL pública externa do Render"
+                      >
+                        🌐 Render (Produção)
+                      </button>
+                      <button
+                        onClick={() => setUrlMode('local')}
+                        className={`px-2 py-0.5 text-3xs rounded font-bold transition-colors ${
+                          urlMode === 'local' 
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Usar localhost:3000 para teste interno"
+                      >
+                        💻 Localhost
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-3xs text-slate-400 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-850">
+                    <span className="truncate">
+                      Host Base: <span className="text-emerald-400 font-bold">{urlMode === 'render' ? apiHostUrl : 'http://localhost:3000'}</span>
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(urlMode === 'render' ? apiHostUrl : 'http://localhost:3000')}
+                      className="text-slate-400 hover:text-white ml-2 shrink-0 p-1"
+                      title="Copiar URL Base"
+                    >
+                      <Clipboard className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <pre className="overflow-x-auto text-2xs leading-relaxed text-slate-200 max-h-48 whitespace-pre-wrap">{pgCurl}</pre>
+                  
                   <button 
                     onClick={() => copyToClipboard(pgCurl)} 
                     className="absolute top-4 right-4 bg-slate-900 hover:bg-slate-800 text-slate-300 p-1.5 rounded transition-all border border-slate-800"
-                    title="Copiar cURL"
+                    title="Copiar cURL completo"
                   >
                     <Clipboard className="w-3.5 h-3.5" />
                   </button>
