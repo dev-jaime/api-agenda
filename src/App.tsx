@@ -54,6 +54,7 @@ interface Credentials {
   basicAuth: { username: string; password: string; exampleHeader: string };
   bearerToken: { clientId: string; clientSecret: string; tokenRoute: string };
   activeTokens: { token: string; timeLeftSeconds: number }[];
+  routeAuthConfig?: Record<string, string>;
 }
 
 export default function App() {
@@ -65,6 +66,14 @@ export default function App() {
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [exams, setExams] = useState<string[]>([]);
   const [credentials, setCredentials] = useState<Credentials | null>(null);
+  const [routeAuthConfig, setRouteAuthConfig] = useState<Record<string, string>>({
+    'GET /api/appointments': 'apikey',
+    'GET /api/appointments/:id': 'apikey',
+    'POST /api/appointments': 'basic',
+    'DELETE /api/appointments/:id': 'basic',
+    'PUT /api/appointments/:id/confirm': 'bearer',
+    'POST /api/appointments/:id/reschedule': 'bearer',
+  });
   const [dbRaw, setDbRaw] = useState<any>(null);
   
   // Selection states
@@ -138,6 +147,9 @@ export default function App() {
       const credRes = await fetch('/api/credentials');
       const credData = await credRes.json();
       setCredentials(credData);
+      if (credData.routeAuthConfig) {
+        setRouteAuthConfig(credData.routeAuthConfig);
+      }
 
       // Load appointments with valid API Key header to ensure success
       const appRes = await fetch('/api/appointments', {
@@ -161,6 +173,62 @@ export default function App() {
       showBanner("error", "Não foi possível sincronizar com a API. Verifique se o servidor está rodando.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateRouteAuth = async (route: string, mode: string) => {
+    try {
+      const res = await fetch('/api/config/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ route, mode })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRouteAuthConfig(data.routeAuthConfig);
+        showBanner("success", `Política da rota "${route}" alterada para "${mode.toUpperCase()}".`);
+      } else {
+        showBanner("error", data.message || "Erro ao atualizar rota.");
+      }
+    } catch (err: any) {
+      showBanner("error", "Erro ao conectar com o servidor para atualizar política.");
+    }
+  };
+
+  const handleApplyPreset = async (preset: 'default' | 'all_any' | 'all_apikey' | 'all_bearer' | 'all_basic') => {
+    const routes = [
+      'GET /api/appointments',
+      'GET /api/appointments/:id',
+      'POST /api/appointments',
+      'DELETE /api/appointments/:id',
+      'PUT /api/appointments/:id/confirm',
+      'POST /api/appointments/:id/reschedule'
+    ];
+    const newConfigs: Record<string, string> = {};
+    if (preset === 'default') {
+      newConfigs['GET /api/appointments'] = 'apikey';
+      newConfigs['GET /api/appointments/:id'] = 'apikey';
+      newConfigs['POST /api/appointments'] = 'basic';
+      newConfigs['DELETE /api/appointments/:id'] = 'basic';
+      newConfigs['PUT /api/appointments/:id/confirm'] = 'bearer';
+      newConfigs['POST /api/appointments/:id/reschedule'] = 'bearer';
+    } else {
+      const targetMode = preset === 'all_any' ? 'any' : preset === 'all_apikey' ? 'apikey' : preset === 'all_bearer' ? 'bearer' : 'basic';
+      routes.forEach(r => { newConfigs[r] = targetMode; });
+    }
+
+    try {
+      for (const [r, m] of Object.entries(newConfigs)) {
+        await fetch('/api/config/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ route: r, mode: m })
+        });
+      }
+      setRouteAuthConfig(newConfigs);
+      showBanner("success", `Preset de autenticação aplicado com sucesso no servidor!`);
+    } catch {
+      showBanner("error", "Erro ao aplicar preset de autenticação.");
     }
   };
 
@@ -1242,6 +1310,110 @@ export default function App() {
                   <div className="text-4xs text-slate-500 font-mono uppercase tracking-widest">Rotas: PUT /confirm, POST /reschedule</div>
                 </div>
 
+              </div>
+            </div>
+
+            {/* Dynamic Route Auth Matrix Controller */}
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-emerald-400" />
+                    <h2 className="text-base font-bold text-white uppercase tracking-wider font-mono">
+                      Matriz de Políticas de Autenticação das Rotas
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Você pode alterar qual autenticação o servidor exige em cada rota para simular qualquer cenário na sua LLM.
+                  </p>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-3xs text-slate-500 font-mono font-bold uppercase">Presets:</span>
+                  <button
+                    onClick={() => handleApplyPreset('default')}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-3xs font-mono font-bold rounded border border-slate-700 transition-colors"
+                    title="API Key para GET, Basic para POST/DELETE, Bearer para PUT/reschedule"
+                  >
+                    Padrão
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset('all_any')}
+                    className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-3xs font-mono font-bold rounded border border-emerald-500/40 transition-colors"
+                    title="Todas as rotas aceitam qualquer método (API Key, Basic ou Bearer)"
+                  >
+                    ⚡ Aceitar Qualquer Uma
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset('all_apikey')}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-3xs font-mono font-bold rounded border border-slate-700 transition-colors"
+                  >
+                    Tudo API Key
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset('all_basic')}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-3xs font-mono font-bold rounded border border-slate-700 transition-colors"
+                  >
+                    Tudo Basic
+                  </button>
+                  <button
+                    onClick={() => handleApplyPreset('all_bearer')}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-3xs font-mono font-bold rounded border border-slate-700 transition-colors"
+                  >
+                    Tudo Bearer
+                  </button>
+                </div>
+              </div>
+
+              {/* Matrix Table */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { route: 'GET /api/appointments', desc: 'Listar agendamentos' },
+                  { route: 'GET /api/appointments/:id', desc: 'Consultar agendamento' },
+                  { route: 'POST /api/appointments', desc: 'Criar agendamento' },
+                  { route: 'DELETE /api/appointments/:id', desc: 'Remover agendamento' },
+                  { route: 'PUT /api/appointments/:id/confirm', desc: 'Confirmar agendamento' },
+                  { route: 'POST /api/appointments/:id/reschedule', desc: 'Remarcar agendamento' },
+                ].map(({ route, desc }) => {
+                  const currentMode = routeAuthConfig[route] || 'apikey';
+                  return (
+                    <div key={route} className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-2 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <code className="text-2xs font-mono font-bold text-white truncate">{route}</code>
+                          <span className={`text-4xs font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
+                            currentMode === 'any' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                            currentMode === 'apikey' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
+                            currentMode === 'basic' ? 'bg-purple-950 text-purple-400 border border-purple-800' :
+                            currentMode === 'bearer' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                            'bg-slate-900 text-slate-400'
+                          }`}>
+                            {currentMode === 'any' ? 'Flexível (Any)' : currentMode}
+                          </span>
+                        </div>
+                        <p className="text-3xs text-slate-500 mt-0.5">{desc}</p>
+                      </div>
+
+                      <div className="pt-1">
+                        <label className="text-4xs text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                          Exigência da Rota:
+                        </label>
+                        <select
+                          value={currentMode}
+                          onChange={(e) => handleUpdateRouteAuth(route, e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-2xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="apikey">Header X-API-Key</option>
+                          <option value="basic">Basic Auth (user:pass)</option>
+                          <option value="bearer">Bearer Token (OAuth)</option>
+                          <option value="any">⚡ Qualquer Método (Aceita Todas)</option>
+                          <option value="none">🔓 Pública (Sem Auth)</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { 
   readDB, 
   writeDB, 
@@ -25,10 +25,69 @@ import {
 export const apiRouter = Router();
 
 // ==========================================
+// DYNAMIC ROUTE AUTH CONFIGURATION MATRIX
+// ==========================================
+export type AuthMode = 'apikey' | 'basic' | 'bearer' | 'any' | 'none';
+
+export const routeAuthConfig: Record<string, AuthMode> = {
+  'GET /api/appointments': 'apikey',
+  'GET /api/appointments/:id': 'apikey',
+  'POST /api/appointments': 'basic',
+  'DELETE /api/appointments/:id': 'basic',
+  'PUT /api/appointments/:id/confirm': 'bearer',
+  'POST /api/appointments/:id/reschedule': 'bearer',
+};
+
+export function dynamicAuth(routeKey: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const mode = routeAuthConfig[routeKey] || 'apikey';
+    if (mode === 'none') {
+      return next();
+    }
+    if (mode === 'apikey') {
+      return requireApiKey(req, res, next);
+    }
+    if (mode === 'basic') {
+      return requireBasicAuth(req, res, next);
+    }
+    if (mode === 'bearer') {
+      return requireBearerToken(req, res, next);
+    }
+    if (mode === 'any') {
+      // Check API Key
+      const apiKey = req.header('X-API-Key') || req.header('x-api-key');
+      if (apiKey === API_KEY_VALUE) return next();
+
+      // Check Basic Auth
+      const authHeader = req.header('Authorization');
+      if (authHeader?.startsWith('Basic ')) {
+        const creds = Buffer.from(authHeader.substring(6).trim(), 'base64').toString('ascii');
+        const [u, p] = creds.split(':');
+        if (u === BASIC_USER && p === BASIC_PASS) return next();
+      }
+
+      // Check Bearer Token
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7).trim();
+        const active = getActiveTokensList();
+        if (active.some(t => t.token === token)) return next();
+      }
+
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Esta rota aceita qualquer método de autenticação (API Key, Basic Auth ou Bearer Token), mas nenhuma credencial válida foi enviada.',
+        help: 'Envie um cabeçalho X-API-Key, Authorization: Basic ou Authorization: Bearer válido.'
+      });
+    }
+    next();
+  };
+}
+
+// ==========================================
 // PUBLIC DIAGNOSTIC & MANAGEMENT ROUTES
 // ==========================================
 
-// Get all credential values (so the client UI can display them for easy copying)
+// GET all credential values (so the client UI can display them for easy copying)
 apiRouter.get('/credentials', (req: Request, res: Response) => {
   res.json({
     apiKey: {
@@ -45,7 +104,29 @@ apiRouter.get('/credentials', (req: Request, res: Response) => {
       clientSecret: CLIENT_SECRET,
       tokenRoute: '/api/auth/token'
     },
-    activeTokens: getActiveTokensList()
+    activeTokens: getActiveTokensList(),
+    routeAuthConfig
+  });
+});
+
+// GET current dynamic auth policy matrix
+apiRouter.get('/config/auth', (req: Request, res: Response) => {
+  res.json(routeAuthConfig);
+});
+
+// POST update auth policy for a specific route
+apiRouter.post('/config/auth', (req: Request, res: Response) => {
+  const { route, mode } = req.body;
+  if (!route || !mode || !['apikey', 'basic', 'bearer', 'any', 'none'].includes(mode)) {
+    return res.status(400).json({ 
+      error: 'Invalid request', 
+      message: 'Informe "route" (ex: "GET /api/appointments") e "mode" ("apikey", "basic", "bearer", "any", "none").' 
+    });
+  }
+  routeAuthConfig[route] = mode;
+  res.json({ 
+    message: `Autenticação para "${route}" atualizada com sucesso para "${mode}".`, 
+    routeAuthConfig 
   });
 });
 
@@ -213,8 +294,8 @@ apiRouter.post('/auth/token', (req: Request, res: Response) => {
 // APPOINTMENTS AGENDA ENDPOINTS (AUTHENTICATED)
 // ==========================================
 
-// 1. LIST APPOINTMENTS (Requires API Key)
-apiRouter.get('/appointments', requireApiKey, (req: Request, res: Response) => {
+// 1. LIST APPOINTMENTS
+apiRouter.get('/appointments', dynamicAuth('GET /api/appointments'), (req: Request, res: Response) => {
   const db = readDB();
   const { date, doctorId } = req.query;
   
@@ -236,8 +317,8 @@ apiRouter.get('/appointments', requireApiKey, (req: Request, res: Response) => {
   res.json(appointments);
 });
 
-// 2. GET APPOINTMENT BY ID (Requires API Key)
-apiRouter.get('/appointments/:id', requireApiKey, (req: Request, res: Response) => {
+// 2. GET APPOINTMENT BY ID
+apiRouter.get('/appointments/:id', dynamicAuth('GET /api/appointments/:id'), (req: Request, res: Response) => {
   const db = readDB();
   const app = db.appointments.find(a => a.id === req.params.id);
   
@@ -350,8 +431,8 @@ function validateAppointmentSlot(
   return { valid: true };
 }
 
-// 3. CREATE APPOINTMENT (Requires Basic Auth)
-apiRouter.post('/appointments', requireBasicAuth, (req: Request, res: Response) => {
+// 3. CREATE APPOINTMENT
+apiRouter.post('/appointments', dynamicAuth('POST /api/appointments'), (req: Request, res: Response) => {
   const { paciente, doutor, especialidade, tipo, data, horaInicial, horaFinal } = req.body;
   
   if (!paciente || !tipo || !data || !horaInicial) {
@@ -417,8 +498,8 @@ apiRouter.post('/appointments', requireBasicAuth, (req: Request, res: Response) 
   });
 });
 
-// 4. REMOVE APPOINTMENT (Requires Basic Auth)
-apiRouter.delete('/appointments/:id', requireBasicAuth, (req: Request, res: Response) => {
+// 4. REMOVE APPOINTMENT
+apiRouter.delete('/appointments/:id', dynamicAuth('DELETE /api/appointments/:id'), (req: Request, res: Response) => {
   const db = readDB();
   const appointmentId = req.params.id;
   
@@ -428,11 +509,6 @@ apiRouter.delete('/appointments/:id', requireBasicAuth, (req: Request, res: Resp
   }
   
   const removed = db.appointments[index];
-  
-  // Choose to set to 'cancelado' or remove completely. Let's remove completely to free slot,
-  // or keep it in database with status 'cancelado' so history is preserved.
-  // The prompt says: "E status livre ou free indica que o horário não possui marcação."
-  // If we delete from array, it frees the space. Let's remove it completely.
   db.appointments.splice(index, 1);
   writeDB(db);
   
@@ -442,8 +518,8 @@ apiRouter.delete('/appointments/:id', requireBasicAuth, (req: Request, res: Resp
   });
 });
 
-// 5. CONFIRM APPOINTMENT (Requires Bearer Token)
-apiRouter.put('/appointments/:id/confirm', requireBearerToken, (req: Request, res: Response) => {
+// 5. CONFIRM APPOINTMENT
+apiRouter.put('/appointments/:id/confirm', dynamicAuth('PUT /api/appointments/:id/confirm'), (req: Request, res: Response) => {
   const db = readDB();
   const appointmentId = req.params.id;
   
@@ -465,8 +541,8 @@ apiRouter.put('/appointments/:id/confirm', requireBearerToken, (req: Request, re
   });
 });
 
-// 6. RESCHEDULE APPOINTMENT (Requires Bearer Token)
-apiRouter.post('/appointments/:id/reschedule', requireBearerToken, (req: Request, res: Response) => {
+// 6. RESCHEDULE APPOINTMENT
+apiRouter.post('/appointments/:id/reschedule', dynamicAuth('POST /api/appointments/:id/reschedule'), (req: Request, res: Response) => {
   const db = readDB();
   const oldAppointmentId = req.params.id;
   const { data, horaInicial, horaFinal } = req.body;
