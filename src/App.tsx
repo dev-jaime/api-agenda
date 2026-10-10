@@ -57,6 +57,107 @@ interface Credentials {
   routeAuthConfig?: Record<string, string>;
 }
 
+export interface RouteObjective {
+  id: string;
+  name: string;
+  description: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  pathTemplate: string;
+  routeKey: string;
+  defaultBody?: string;
+  requiresId?: boolean;
+}
+
+export const ROUTE_OBJECTIVES: RouteObjective[] = [
+  {
+    id: 'list_appointments',
+    name: 'Listar todos os agendamentos',
+    description: 'Retorna a lista de compromissos cadastrados na agenda',
+    method: 'GET',
+    pathTemplate: '/api/appointments',
+    routeKey: 'GET /api/appointments'
+  },
+  {
+    id: 'get_appointment',
+    name: 'Consultar agendamento por ID',
+    description: 'Busca os detalhes de um compromisso específico',
+    method: 'GET',
+    pathTemplate: '/api/appointments/:id',
+    routeKey: 'GET /api/appointments/:id',
+    requiresId: true
+  },
+  {
+    id: 'create_appointment',
+    name: 'Criar novo agendamento',
+    description: 'Registra uma nova Consulta, Exame ou Retorno',
+    method: 'POST',
+    pathTemplate: '/api/appointments',
+    routeKey: 'POST /api/appointments',
+    defaultBody: '{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "2026-10-12",\n  "horaInicial": "11:00"\n}'
+  },
+  {
+    id: 'confirm_appointment',
+    name: 'Confirmar agendamento (Presença)',
+    description: 'Muda o status do compromisso de agendado para confirmado',
+    method: 'PUT',
+    pathTemplate: '/api/appointments/:id/confirm',
+    routeKey: 'PUT /api/appointments/:id/confirm',
+    requiresId: true
+  },
+  {
+    id: 'reschedule_appointment',
+    name: 'Remarcar agendamento',
+    description: 'Remarca para mesma data (confirmado) ou data futura (remarcado)',
+    method: 'POST',
+    pathTemplate: '/api/appointments/:id/reschedule',
+    routeKey: 'POST /api/appointments/:id/reschedule',
+    requiresId: true,
+    defaultBody: '{\n  "data": "2026-10-13",\n  "horaInicial": "10:00"\n}'
+  },
+  {
+    id: 'delete_appointment',
+    name: 'Remover agendamento',
+    description: 'Exclui o registro da agenda abrindo o horário para marcação',
+    method: 'DELETE',
+    pathTemplate: '/api/appointments/:id',
+    routeKey: 'DELETE /api/appointments/:id',
+    requiresId: true
+  },
+  {
+    id: 'get_token',
+    name: 'Solicitar Bearer Token (OAuth Pre-request)',
+    description: 'Emite token temporário de 5 minutos usando client credentials',
+    method: 'POST',
+    pathTemplate: '/api/auth/token',
+    routeKey: 'POST /api/auth/token',
+    defaultBody: '{\n  "client_id": "llm_client_id",\n  "client_secret": "llm_client_secret"\n}'
+  },
+  {
+    id: 'list_doctors',
+    name: 'Listar médicos cadastrados',
+    description: 'Retorna a lista de médicos, especialidades e expedientes',
+    method: 'GET',
+    pathTemplate: '/api/doctors',
+    routeKey: 'GET /api/doctors'
+  },
+  {
+    id: 'list_specialties',
+    name: 'Listar especialidades médicas',
+    description: 'Consulta as especialidades ativas no sistema',
+    method: 'GET',
+    pathTemplate: '/api/specialties',
+    routeKey: 'GET /api/specialties'
+  },
+  {
+    id: 'list_exams',
+    name: 'Listar exames clínicos',
+    description: 'Consulta os exames laboratoriais disponíveis',
+    method: 'GET',
+    pathTemplate: '/api/exams',
+    routeKey: 'GET /api/exams'
+  }
+];
+
 export default function App() {
   // State variables
   const [activeTab, setActiveTab] = useState<'agenda' | 'painel' | 'playground' | 'database'>('agenda');
@@ -119,7 +220,12 @@ export default function App() {
   
   // External Public URL configured on Render
   const [apiHostUrl, setApiHostUrl] = useState<string>('https://api-agenda-bl43.onrender.com');
-  const [urlMode, setUrlMode] = useState<'render' | 'local'>('render');
+  const [curlHostMode, setCurlHostMode] = useState<'render' | 'local'>('render');
+  const [simulatorTarget, setSimulatorTarget] = useState<'local' | 'render'>('local');
+  
+  // Objective-based route selector state
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string>('list_appointments');
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('app-1');
   
   // Custom client ID and secret for custom bearer requests in playground
   const [pgClientId, setPgClientId] = useState('llm_client_id');
@@ -155,9 +261,9 @@ export default function App() {
         setRouteAuthConfig(credData.routeAuthConfig);
       }
 
-      // Load appointments with valid API Key header to ensure success
+      // Load appointments with internal admin header so background UI never fails regardless of test policies
       const appRes = await fetch('/api/appointments', {
-        headers: { 'X-API-Key': 'agenda_secret_apikey_2026' }
+        headers: { 'X-App-Admin': 'agenda_admin_internal' }
       });
       if (appRes.ok) {
         const appData = await appRes.json();
@@ -169,7 +275,7 @@ export default function App() {
         doctors: docData,
         specialties: specData,
         exams: examData,
-        appointments: await (await fetch('/api/appointments', { headers: { 'X-API-Key': 'agenda_secret_apikey_2026' } })).json()
+        appointments: await (await fetch('/api/appointments', { headers: { 'X-App-Admin': 'agenda_admin_internal' } })).json()
       });
 
     } catch (err) {
@@ -189,8 +295,27 @@ export default function App() {
       });
       const data = await res.json();
       if (res.ok) {
-        setRouteAuthConfig(data.routeAuthConfig);
-        showBanner("success", `Política da rota "${route}" alterada para "${mode.toUpperCase()}".`);
+        setRouteAuthConfig(prev => ({ ...prev, [route]: mode }));
+        showBanner("success", `Política da rota "${route}" configurada como "${mode.toUpperCase()}".`);
+
+        // Also attempt background sync with external host (Render)
+        if (apiHostUrl && apiHostUrl.startsWith('http')) {
+          fetch(`${apiHostUrl.replace(/\/+$/, '')}/api/config/auth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ route, mode })
+          }).catch(() => {});
+        }
+
+        // Automatically marry the simulator auth method to match the newly configured policy for this route
+        const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+        if (currentObj && currentObj.routeKey === route) {
+          if (mode === 'any') {
+            setPgAuthType('apikey');
+          } else {
+            setPgAuthType(mode as any);
+          }
+        }
       } else {
         showBanner("error", data.message || "Erro ao atualizar rota.");
       }
@@ -222,17 +347,60 @@ export default function App() {
     }
 
     try {
-      for (const [r, m] of Object.entries(newConfigs)) {
-        await fetch('/api/config/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ route: r, mode: m })
-        });
+      const res = await fetch('/api/config/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ configs: newConfigs })
+      });
+      if (res.ok) {
+        setRouteAuthConfig(prev => ({ ...prev, ...newConfigs }));
+        showBanner("success", `Preset de autenticação aplicado e salvo no servidor!`);
+
+        // Also sync to Render
+        if (apiHostUrl && apiHostUrl.startsWith('http')) {
+          fetch(`${apiHostUrl.replace(/\/+$/, '')}/api/config/auth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ configs: newConfigs })
+          }).catch(() => {});
+        }
+
+        // Auto-update pgAuthType for currently selected objective
+        const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+        if (currentObj && newConfigs[currentObj.routeKey]) {
+          const targetMode = newConfigs[currentObj.routeKey];
+          setPgAuthType(targetMode === 'any' ? 'apikey' : targetMode as any);
+        }
+      } else {
+        showBanner("error", "Erro ao salvar preset no servidor.");
       }
-      setRouteAuthConfig(newConfigs);
-      showBanner("success", `Preset de autenticação aplicado com sucesso no servidor!`);
     } catch {
       showBanner("error", "Erro ao aplicar preset de autenticação.");
+    }
+  };
+
+  const handleSelectObjective = (objId: string, customAppId?: string) => {
+    setSelectedObjectiveId(objId);
+    const obj = ROUTE_OBJECTIVES.find(o => o.id === objId);
+    if (!obj) return;
+
+    setPgMethod(obj.method);
+    const targetId = customAppId || selectedAppointmentId || appointments[0]?.id || 'app-1';
+    const resolvedEndpoint = obj.pathTemplate.replace(':id', targetId);
+    setPgEndpoint(resolvedEndpoint);
+
+    if (obj.defaultBody) {
+      setPgBody(obj.defaultBody);
+    }
+
+    // Auto-select auth based on current policy in routeAuthConfig so they always marry by default
+    const currentRequiredAuth = routeAuthConfig[obj.routeKey];
+    if (currentRequiredAuth && currentRequiredAuth !== 'any') {
+      setPgAuthType(currentRequiredAuth as any);
+    } else if (currentRequiredAuth === 'any') {
+      setPgAuthType('apikey');
+    } else if (obj.id === 'get_token' || obj.id.startsWith('list_doc') || obj.id.startsWith('list_spec') || obj.id.startsWith('list_exam')) {
+      setPgAuthType('none');
     }
   };
 
@@ -243,7 +411,7 @@ export default function App() {
   // Update playground curl preview whenever options change
   useEffect(() => {
     generateCurl();
-  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, urlMode]);
+  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, curlHostMode]);
 
   const showBanner = (type: 'success' | 'error', msg: string) => {
     if (type === 'success') {
@@ -257,7 +425,7 @@ export default function App() {
 
   // Helper to generate curl preview
   const generateCurl = () => {
-    const baseUrl = urlMode === 'render' 
+    const baseUrl = curlHostMode === 'render' 
       ? apiHostUrl.replace(/\/+$/, '') 
       : 'http://localhost:3000';
     let curl = `curl -X ${pgMethod} "${baseUrl}${pgEndpoint}"`;
@@ -291,7 +459,7 @@ export default function App() {
 
   // Execute playground API request
   const handlePlaygroundSubmit = async () => {
-    setPgResponse('Carregando...');
+    setPgResponse('Executando requisição REST...');
     setPgResponseStatus(null);
     
     const headers: Record<string, string> = {};
@@ -331,7 +499,7 @@ export default function App() {
         options.body = pgBody;
       }
 
-      const targetBase = urlMode === 'render' ? apiHostUrl.replace(/\/+$/, '') : '';
+      const targetBase = simulatorTarget === 'render' ? apiHostUrl.replace(/\/+$/, '') : '';
       const targetFullUrl = `${targetBase}${pgEndpoint}`;
 
       const res = await fetch(targetFullUrl, options);
@@ -339,12 +507,12 @@ export default function App() {
       const json = await res.json();
       setPgResponse(JSON.stringify(json, null, 2));
       
-      if (urlMode === 'local') {
+      if (simulatorTarget === 'local') {
         fetchData();
       }
     } catch (err: any) {
-      const currentHost = urlMode === 'render' ? apiHostUrl : 'http://localhost:3000';
-      setPgResponse(`Erro ao executar requisição contra ${currentHost}:\n${err.message}\n\n(Dica: se a instância gratuita no Render estiver em hibernação, o primeiro cold start pode levar cerca de 50s. Você também pode alternar a chave para "💻 Localhost" para testar instantaneamente no preview).`);
+      const currentHost = simulatorTarget === 'render' ? apiHostUrl : 'http://localhost:3000';
+      setPgResponse(`Erro ao executar requisição contra ${currentHost}:\n${err.message}\n\n(Dica: se estiver testando contra o Render em nuvem e a instância estiver em hibernação, o cold start leva ~50s. Alterne o alvo da simulação para "💻 Preview Local" para testar com 0ms e resposta determinística).`);
     }
   };
 
@@ -1390,47 +1558,90 @@ export default function App() {
               {/* Matrix Table */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[
-                  { route: 'GET /api/appointments', desc: 'Listar agendamentos' },
-                  { route: 'GET /api/appointments/:id', desc: 'Consultar agendamento' },
-                  { route: 'POST /api/appointments', desc: 'Criar agendamento' },
-                  { route: 'DELETE /api/appointments/:id', desc: 'Remover agendamento' },
-                  { route: 'PUT /api/appointments/:id/confirm', desc: 'Confirmar agendamento' },
-                  { route: 'POST /api/appointments/:id/reschedule', desc: 'Remarcar agendamento' },
-                ].map(({ route, desc }) => {
+                  { route: 'GET /api/appointments', desc: 'Listar todos os agendamentos', objectiveId: 'list_appointments' },
+                  { route: 'GET /api/appointments/:id', desc: 'Consultar agendamento por ID', objectiveId: 'get_appointment' },
+                  { route: 'POST /api/appointments', desc: 'Criar novo agendamento', objectiveId: 'create_appointment' },
+                  { route: 'DELETE /api/appointments/:id', desc: 'Remover agendamento', objectiveId: 'delete_appointment' },
+                  { route: 'PUT /api/appointments/:id/confirm', desc: 'Confirmar agendamento (Presença)', objectiveId: 'confirm_appointment' },
+                  { route: 'POST /api/appointments/:id/reschedule', desc: 'Remarcar agendamento', objectiveId: 'reschedule_appointment' },
+                ].map(({ route, desc, objectiveId }) => {
+                  const [method, path] = route.split(' ');
                   const currentMode = routeAuthConfig[route] || 'apikey';
                   return (
-                    <div key={route} className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 space-y-2 flex flex-col justify-between">
-                      <div>
+                    <div key={route} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between hover:border-slate-700 transition-colors">
+                      <div className="space-y-2">
+                        {/* Header with method badge, current mode, and copy button */}
                         <div className="flex items-center justify-between gap-2">
-                          <code className="text-2xs font-mono font-bold text-white truncate">{route}</code>
-                          <span className={`text-4xs font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
-                            currentMode === 'any' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                            currentMode === 'apikey' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
-                            currentMode === 'basic' ? 'bg-purple-950 text-purple-400 border border-purple-800' :
-                            currentMode === 'bearer' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                            'bg-slate-900 text-slate-400'
-                          }`}>
-                            {currentMode === 'any' ? 'Flexível (Any)' : currentMode}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded text-4xs font-mono font-bold tracking-wider ${
+                              method === 'GET' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
+                              method === 'POST' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                              method === 'PUT' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                              'bg-rose-950 text-rose-400 border border-rose-800'
+                            }`}>
+                              {method}
+                            </span>
+                            <span className={`text-4xs font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
+                              currentMode === 'any' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                              currentMode === 'apikey' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
+                              currentMode === 'basic' ? 'bg-purple-950 text-purple-400 border border-purple-800' :
+                              currentMode === 'bearer' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                              'bg-slate-900 text-slate-400'
+                            }`}>
+                              {currentMode === 'any' ? 'Qualquer' : currentMode}
+                            </span>
+                          </div>
+
+                          {/* Copy route path button */}
+                          <button
+                            onClick={() => copyToClipboard(path)}
+                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-900 transition-colors shrink-0"
+                            title="Copiar endpoint da rota"
+                          >
+                            <Clipboard className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <p className="text-3xs text-slate-500 mt-0.5">{desc}</p>
+
+                        {/* Full path visible clearly without truncation */}
+                        <div>
+                          <p className="text-xs font-mono font-bold text-slate-100 break-all leading-snug">
+                            {path}
+                          </p>
+                          <p className="text-3xs text-slate-400 mt-1 font-sans font-medium">
+                            {desc}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="pt-1">
-                        <label className="text-4xs text-slate-400 font-bold uppercase tracking-wider block mb-1">
-                          Exigência da Rota:
-                        </label>
-                        <select
-                          value={currentMode}
-                          onChange={(e) => handleUpdateRouteAuth(route, e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-2xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500"
+                      {/* Policy selector and load button */}
+                      <div className="space-y-2 pt-2 border-t border-slate-900">
+                        <div>
+                          <label className="text-4xs text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                            Exigência da Rota:
+                          </label>
+                          <select
+                            value={currentMode}
+                            onChange={(e) => handleUpdateRouteAuth(route, e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-2xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="apikey">Header X-API-Key</option>
+                            <option value="basic">Basic Auth (user:pass)</option>
+                            <option value="bearer">Bearer Token (OAuth)</option>
+                            <option value="any">⚡ Qualquer Método (Aceita Todas)</option>
+                            <option value="none">🔓 Pública (Sem Auth)</option>
+                          </select>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            handleSelectObjective(objectiveId);
+                            showBanner("success", `Rota "${desc}" carregada no Playground!`);
+                          }}
+                          className="w-full py-1 text-4xs font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/60 rounded transition-colors flex items-center justify-center gap-1"
                         >
-                          <option value="apikey">Header X-API-Key</option>
-                          <option value="basic">Basic Auth (user:pass)</option>
-                          <option value="bearer">Bearer Token (OAuth)</option>
-                          <option value="any">⚡ Qualquer Método (Aceita Todas)</option>
-                          <option value="none">🔓 Pública (Sem Auth)</option>
-                        </select>
+                          <ArrowRight className="w-3 h-3" />
+                          Carregar no Playground
+                        </button>
                       </div>
                     </div>
                   );
@@ -1489,42 +1700,73 @@ export default function App() {
                   <div className="space-y-3 pt-2">
                     <span className="font-bold text-white text-2xs block border-b border-slate-800 pb-1 uppercase tracking-wider font-mono">Passo 2: Configurar Chamada REST</span>
                     
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-4xs text-slate-500 font-bold mb-1">MÉTODO</label>
-                        <select 
-                          value={pgMethod} 
-                          onChange={e => {
-                            const method = e.target.value as any;
-                            setPgMethod(method);
-                            if (method === 'GET') {
-                              setPgEndpoint('/api/appointments');
-                            } else if (method === 'POST') {
-                              setPgEndpoint('/api/appointments');
-                            } else if (method === 'PUT') {
-                              setPgEndpoint(`/api/appointments/${appointments[0]?.id || 'app-1'}/confirm`);
-                            } else if (method === 'DELETE') {
-                              setPgEndpoint(`/api/appointments/${appointments[0]?.id || 'app-1'}`);
-                            }
-                          }}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
-                        >
-                          <option value="GET">GET</option>
-                          <option value="POST">POST</option>
-                          <option value="PUT">PUT</option>
-                          <option value="DELETE">DELETE</option>
-                        </select>
+                    {/* Combobox de Objetivo da Rota */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-4xs text-emerald-400 font-mono font-bold uppercase tracking-wider">
+                          🎯 Objetivo da Operação:
+                        </label>
+                        <span className="text-4xs text-slate-500 font-mono">
+                          {ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId)?.routeKey}
+                        </span>
+                      </div>
+                      
+                      <select 
+                        value={selectedObjectiveId} 
+                        onChange={e => handleSelectObjective(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-medium focus:outline-none focus:border-emerald-500"
+                      >
+                        <optgroup label="📋 Agendamentos (Compromissos)">
+                          <option value="list_appointments">Listar todos os agendamentos (GET)</option>
+                          <option value="get_appointment">Consultar agendamento por ID (GET)</option>
+                          <option value="create_appointment">Criar novo agendamento (POST)</option>
+                          <option value="confirm_appointment">Confirmar agendamento (PUT)</option>
+                          <option value="reschedule_appointment">Remarcar agendamento (POST)</option>
+                          <option value="delete_appointment">Remover agendamento (DELETE)</option>
+                        </optgroup>
+                        <optgroup label="🔐 Autenticação">
+                          <option value="get_token">Solicitar Bearer Token (POST /api/auth/token)</option>
+                        </optgroup>
+                        <optgroup label="🩺 Cadastros da Clínica">
+                          <option value="list_doctors">Listar médicos cadastrados (GET)</option>
+                          <option value="list_specialties">Listar especialidades (GET)</option>
+                          <option value="list_exams">Listar exames laboratoriais (GET)</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* Resolved Route Indicator Bar */}
+                    <div className="bg-slate-950 px-3 py-2 rounded-lg border border-slate-850 flex items-center justify-between gap-2 text-2xs font-mono">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <span className={`px-1.5 py-0.5 rounded text-4xs font-bold tracking-wider shrink-0 ${
+                          pgMethod === 'GET' ? 'bg-blue-950 text-blue-400 border border-blue-800' :
+                          pgMethod === 'POST' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                          pgMethod === 'PUT' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                          'bg-rose-950 text-rose-400 border border-rose-800'
+                        }`}>
+                          {pgMethod}
+                        </span>
+                        <code className="text-emerald-400 font-bold truncate">{pgEndpoint}</code>
                       </div>
 
-                      <div className="col-span-2">
-                        <label className="block text-4xs text-slate-500 font-bold mb-1">ENDPOINT DA API</label>
-                        <input 
-                          type="text" 
-                          value={pgEndpoint} 
-                          onChange={e => setPgEndpoint(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs font-mono text-emerald-400"
-                        />
-                      </div>
+                      {ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId)?.requiresId && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-4xs text-slate-400 uppercase font-bold">Alvo:</span>
+                          <select
+                            value={selectedAppointmentId}
+                            onChange={(e) => {
+                              setSelectedAppointmentId(e.target.value);
+                              handleSelectObjective(selectedObjectiveId, e.target.value);
+                            }}
+                            className="bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-3xs text-white"
+                          >
+                            {appointments.map(a => (
+                              <option key={a.id} value={a.id}>{a.id} ({a.paciente})</option>
+                            ))}
+                            {appointments.length === 0 && <option value="app-1">app-1</option>}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -1553,6 +1795,99 @@ export default function App() {
                           <option value="invalid">Credenciais Incorretas (Validar 401/403)</option>
                           <option value="none">Ausente (Validar 401)</option>
                         </select>
+                      </div>
+                    </div>
+
+                    {/* Status de Casamento da Autenticação (Card vs Simulador) */}
+                    {(() => {
+                      const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+                      const routeKey = currentObj?.routeKey || '';
+                      const requiredMode = routeAuthConfig[routeKey] || 'apikey';
+                      const isPublic = ['POST /api/auth/token', 'GET /api/doctors', 'GET /api/specialties', 'GET /api/exams'].includes(routeKey);
+
+                      const modeLabels: Record<string, string> = {
+                        apikey: 'Header API Key',
+                        basic: 'Basic Auth',
+                        bearer: 'Bearer Token',
+                        any: 'Qualquer Método',
+                        none: 'Sem Autenticação'
+                      };
+
+                      if (isPublic) {
+                        return (
+                          <div className="p-2.5 rounded-lg border border-slate-800 bg-slate-950/80 text-3xs font-mono text-slate-400 flex items-center justify-between">
+                            <span>🔓 Rota pública da API (dispensa autenticação de acesso).</span>
+                          </div>
+                        );
+                      }
+
+                      const isMatched = requiredMode === 'any' ? true : pgAuthType === requiredMode;
+
+                      if (isMatched) {
+                        return (
+                          <div className="p-2.5 rounded-lg border border-emerald-800/80 bg-emerald-950/40 text-3xs font-mono text-emerald-300 flex items-center justify-between gap-2 shadow-inner">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span>
+                                <strong>Casamento Perfeito:</strong> O simulador está enviando <strong>{modeLabels[pgAuthType] || pgAuthType}</strong>, que casa exatamente com a exigência configurada no card ({modeLabels[requiredMode] || requiredMode}). Com credenciais válidas, a API retornará dados com sucesso!
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="p-2.5 rounded-lg border border-amber-800/90 bg-amber-950/40 text-3xs font-mono text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-inner">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>
+                                <strong>Incompatibilidade Detectada:</strong> O card exige <strong>{modeLabels[requiredMode] || requiredMode}</strong>, mas o simulador está enviando <strong>{modeLabels[pgAuthType] || pgAuthType}</strong>. A API <u>rejeitará com 401 Unauthorized</u> mesmo se simular dados corretos (as 2 configurações precisam casar).
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPgAuthType(requiredMode === 'any' ? 'apikey' : requiredMode as any)}
+                              className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded text-4xs font-bold uppercase tracking-wider shrink-0 transition-colors"
+                            >
+                              ⚡ Casar com o Card
+                            </button>
+                          </div>
+                        );
+                      }
+                    })()}
+
+                    {/* Alvo da execução do simulador */}
+                    <div className="bg-slate-950 px-3 py-2 rounded-lg border border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Server className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-4xs text-slate-400 uppercase font-bold tracking-wider">
+                          Executar Simulador contra:
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-slate-900 p-0.5 rounded border border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setSimulatorTarget('local')}
+                          className={`px-2 py-0.5 text-4xs rounded font-bold transition-colors ${
+                            simulatorTarget === 'local'
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Ambiente local garantido, instantâneo e 100% sincronizado com os cards"
+                        >
+                          💻 Preview Local (Recomendado)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSimulatorTarget('render')}
+                          className={`px-2 py-0.5 text-4xs rounded font-bold transition-colors ${
+                            simulatorTarget === 'render'
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Instância remota pública do Render"
+                        >
+                          🌐 Render Cloud
+                        </button>
                       </div>
                     </div>
 
@@ -1628,24 +1963,24 @@ export default function App() {
                     {/* Host selector switch */}
                     <div className="flex items-center gap-1.5 bg-slate-900 p-0.5 rounded border border-slate-800">
                       <button
-                        onClick={() => setUrlMode('render')}
+                        onClick={() => setCurlHostMode('render')}
                         className={`px-2 py-0.5 text-3xs rounded font-bold transition-colors ${
-                          urlMode === 'render' 
+                          curlHostMode === 'render' 
                             ? 'bg-emerald-500 text-slate-950 shadow-sm' 
                             : 'text-slate-400 hover:text-white'
                         }`}
-                        title="Usar URL pública externa do Render"
+                        title="Usar URL pública externa do Render no comando cURL"
                       >
                         🌐 Render (Produção)
                       </button>
                       <button
-                        onClick={() => setUrlMode('local')}
+                        onClick={() => setCurlHostMode('local')}
                         className={`px-2 py-0.5 text-3xs rounded font-bold transition-colors ${
-                          urlMode === 'local' 
+                          curlHostMode === 'local' 
                             ? 'bg-emerald-500 text-slate-950 shadow-sm' 
                             : 'text-slate-400 hover:text-white'
                         }`}
-                        title="Usar localhost:3000 para teste interno"
+                        title="Usar localhost:3000 no comando cURL"
                       >
                         💻 Localhost
                       </button>
@@ -1654,10 +1989,10 @@ export default function App() {
 
                   <div className="flex items-center justify-between text-3xs text-slate-400 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-850">
                     <span className="truncate">
-                      Host Base: <span className="text-emerald-400 font-bold">{urlMode === 'render' ? apiHostUrl : 'http://localhost:3000'}</span>
+                      Host Base do cURL: <span className="text-emerald-400 font-bold">{curlHostMode === 'render' ? apiHostUrl : 'http://localhost:3000'}</span>
                     </span>
                     <button
-                      onClick={() => copyToClipboard(urlMode === 'render' ? apiHostUrl : 'http://localhost:3000')}
+                      onClick={() => copyToClipboard(curlHostMode === 'render' ? apiHostUrl : 'http://localhost:3000')}
                       className="text-slate-400 hover:text-white ml-2 shrink-0 p-1"
                       title="Copiar URL Base"
                     >

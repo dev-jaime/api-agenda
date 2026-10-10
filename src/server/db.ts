@@ -32,6 +32,7 @@ export interface DBStructure {
   specialties: string[];
   exams: string[];
   appointments: Appointment[];
+  routeAuthConfig?: Record<string, string>;
 }
 
 const DEFAULT_DB: DBStructure = {

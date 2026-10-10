@@ -40,6 +40,7 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   if (!apiKey) {
     return res.status(401).json({
       error: 'Unauthorized',
+      code: 'MISSING_CREDENTIALS',
       message: 'Missing API Key in header. Use "X-API-Key" header.',
       help: `Configure header: "X-API-Key: ${API_KEY_VALUE}"`
     });
@@ -48,6 +49,7 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   if (apiKey !== API_KEY_VALUE) {
     return res.status(403).json({
       error: 'Forbidden',
+      code: 'INVALID_CREDENTIALS',
       message: 'Invalid API Key.',
       help: `The valid API Key is: ${API_KEY_VALUE}`
     });
@@ -63,6 +65,7 @@ export function requireBasicAuth(req: Request, res: Response, next: NextFunction
   if (!authHeader || !authHeader.startsWith('Basic ')) {
     return res.status(401).json({
       error: 'Unauthorized',
+      code: 'MISSING_CREDENTIALS',
       message: 'Missing Basic authentication. Use Authorization header with Basic scheme.',
       help: 'Format: "Authorization: Basic <base64(user:pass)>"'
     });
@@ -75,6 +78,7 @@ export function requireBasicAuth(req: Request, res: Response, next: NextFunction
   if (username !== BASIC_USER || password !== BASIC_PASS) {
     return res.status(403).json({
       error: 'Forbidden',
+      code: 'INVALID_CREDENTIALS',
       message: 'Invalid Basic credentials.',
       help: `Valid credentials are username: "${BASIC_USER}" and password: "${BASIC_PASS}"`
     });
@@ -90,6 +94,7 @@ export function requireBearerToken(req: Request, res: Response, next: NextFuncti
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       error: 'Unauthorized',
+      code: 'MISSING_CREDENTIALS',
       message: 'Missing Bearer Token. Use Authorization header with Bearer scheme.',
       help: 'Format: "Authorization: Bearer <access_token>"'
     });
@@ -101,6 +106,7 @@ export function requireBearerToken(req: Request, res: Response, next: NextFuncti
   if (!foundToken) {
     return res.status(403).json({
       error: 'Forbidden',
+      code: 'INVALID_TOKEN',
       message: 'Bearer Token not found or invalid.',
       help: 'Generate a new token with POST /api/auth/token using client credentials.'
     });
@@ -113,6 +119,7 @@ export function requireBearerToken(req: Request, res: Response, next: NextFuncti
     
     return res.status(401).json({
       error: 'Unauthorized',
+      code: 'TOKEN_EXPIRED',
       message: 'Bearer Token expired.',
       help: 'Bearer tokens are valid for 5 minutes. Generate a new token with POST /api/auth/token.'
     });
