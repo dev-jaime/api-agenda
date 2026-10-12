@@ -67,6 +67,7 @@ export interface RouteObjective {
   routeKey: string;
   defaultBody?: string;
   requiresId?: boolean;
+  expectsBody?: boolean;
 }
 
 export const ROUTE_OBJECTIVES: RouteObjective[] = [
@@ -76,7 +77,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     description: 'Retorna a lista de compromissos cadastrados na agenda',
     method: 'GET',
     pathTemplate: '/api/appointments',
-    routeKey: 'GET /api/appointments'
+    routeKey: 'GET /api/appointments',
+    expectsBody: false
   },
   {
     id: 'get_appointment',
@@ -85,7 +87,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     method: 'GET',
     pathTemplate: '/api/appointments/:id',
     routeKey: 'GET /api/appointments/:id',
-    requiresId: true
+    requiresId: true,
+    expectsBody: false
   },
   {
     id: 'create_appointment',
@@ -94,6 +97,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     method: 'POST',
     pathTemplate: '/api/appointments',
     routeKey: 'POST /api/appointments',
+    expectsBody: true,
     defaultBody: '{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "2026-10-12",\n  "horaInicial": "11:00"\n}'
   },
   {
@@ -103,7 +107,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     method: 'PUT',
     pathTemplate: '/api/appointments/:id/confirm',
     routeKey: 'PUT /api/appointments/:id/confirm',
-    requiresId: true
+    requiresId: true,
+    expectsBody: false
   },
   {
     id: 'reschedule_appointment',
@@ -113,6 +118,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     pathTemplate: '/api/appointments/:id/reschedule',
     routeKey: 'POST /api/appointments/:id/reschedule',
     requiresId: true,
+    expectsBody: true,
     defaultBody: '{\n  "data": "2026-10-13",\n  "horaInicial": "10:00"\n}'
   },
   {
@@ -122,15 +128,17 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     method: 'DELETE',
     pathTemplate: '/api/appointments/:id',
     routeKey: 'DELETE /api/appointments/:id',
-    requiresId: true
+    requiresId: true,
+    expectsBody: false
   },
   {
     id: 'get_token',
     name: 'Solicitar Bearer Token (OAuth Pre-request)',
-    description: 'Emite token temporário de 5 minutos usando client credentials',
+    description: 'Emite token temporário configurável usando client credentials',
     method: 'POST',
     pathTemplate: '/api/auth/token',
     routeKey: 'POST /api/auth/token',
+    expectsBody: true,
     defaultBody: '{\n  "client_id": "llm_client_id",\n  "client_secret": "llm_client_secret"\n}'
   },
   {
@@ -139,7 +147,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     description: 'Retorna a lista de médicos, especialidades e expedientes',
     method: 'GET',
     pathTemplate: '/api/doctors',
-    routeKey: 'GET /api/doctors'
+    routeKey: 'GET /api/doctors',
+    expectsBody: false
   },
   {
     id: 'list_specialties',
@@ -147,7 +156,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     description: 'Consulta as especialidades ativas no sistema',
     method: 'GET',
     pathTemplate: '/api/specialties',
-    routeKey: 'GET /api/specialties'
+    routeKey: 'GET /api/specialties',
+    expectsBody: false
   },
   {
     id: 'list_exams',
@@ -155,7 +165,8 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     description: 'Consulta os exames laboratoriais disponíveis',
     method: 'GET',
     pathTemplate: '/api/exams',
-    routeKey: 'GET /api/exams'
+    routeKey: 'GET /api/exams',
+    expectsBody: false
   }
 ];
 
@@ -214,7 +225,7 @@ export default function App() {
   const [pgMethod, setPgMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>('GET');
   const [pgAuthType, setPgAuthType] = useState<'none' | 'apikey' | 'basic' | 'bearer'>('apikey');
   const [pgAuthCreds, setPgAuthCreds] = useState<'valid' | 'invalid' | 'none'>('valid');
-  const [pgBody, setPgBody] = useState<string>('{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "2026-10-12",\n  "horaInicial": "11:00"\n}');
+  const [pgBody, setPgBody] = useState<string>('');
   const [pgResponse, setPgResponse] = useState<string>('// Clique em "Enviar Requisição" para testar a API.');
   const [pgResponseStatus, setPgResponseStatus] = useState<number | null>(null);
   const [pgCurl, setPgCurl] = useState<string>('');
@@ -434,8 +445,15 @@ export default function App() {
     const resolvedEndpoint = obj.pathTemplate.replace(':id', targetId);
     setPgEndpoint(resolvedEndpoint);
 
-    if (obj.defaultBody) {
+    // Limpar resposta anterior e status para não haver confusão com testes prévios
+    setPgResponse('// Clique em "Enviar Requisição REST" para testar a rota.');
+    setPgResponseStatus(null);
+
+    // Configurar o corpo (body) de acordo com a exigência da rota, limpando completamente se não exigir
+    if (obj.expectsBody && obj.defaultBody) {
       setPgBody(obj.defaultBody);
+    } else {
+      setPgBody('');
     }
 
     // Auto-select auth based on current policy in routeAuthConfig so they always marry by default
@@ -447,6 +465,7 @@ export default function App() {
     } else if (obj.id === 'get_token' || obj.id.startsWith('list_doc') || obj.id.startsWith('list_spec') || obj.id.startsWith('list_exam')) {
       setPgAuthType('none');
     }
+    setPgAuthCreds('valid');
   };
 
   useEffect(() => {
@@ -470,7 +489,7 @@ export default function App() {
   // Update playground curl preview whenever options change
   useEffect(() => {
     generateCurl();
-  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, curlHostMode]);
+  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, curlHostMode, selectedObjectiveId]);
 
   const showBanner = (type: 'success' | 'error', msg: string) => {
     if (type === 'success') {
@@ -509,7 +528,10 @@ export default function App() {
       }
     }
     
-    if (['POST', 'PUT'].includes(pgMethod) && pgBody) {
+    // Anexa corpo JSON apenas se o objetivo realmente esperar body e houver conteúdo
+    const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+    const hasValidBody = Boolean(currentObj?.expectsBody && pgBody && pgBody.trim().length > 0);
+    if (hasValidBody) {
       curl += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${pgBody.replace(/'/g, "'\\''")}'`;
     }
     
@@ -523,7 +545,10 @@ export default function App() {
     
     const headers: Record<string, string> = {};
     
-    if (['POST', 'PUT'].includes(pgMethod)) {
+    const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+    const hasValidBody = Boolean(currentObj?.expectsBody && pgBody && pgBody.trim().length > 0);
+
+    if (hasValidBody) {
       headers['Content-Type'] = 'application/json';
     }
     
@@ -554,7 +579,7 @@ export default function App() {
         headers
       };
 
-      if (['POST', 'PUT'].includes(pgMethod) && pgBody) {
+      if (hasValidBody) {
         options.body = pgBody;
       }
 
@@ -1739,7 +1764,11 @@ export default function App() {
                         <button
                           onClick={() => {
                             handleSelectObjective(objectiveId);
-                            showBanner("success", `Rota "${desc}" carregada no Playground!`);
+                            const elem = document.getElementById('rest-generator');
+                            if (elem) {
+                              elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                            showBanner("success", `Rota "${desc}" carregada e limpa no Playground!`);
                           }}
                           className="w-full py-1 text-4xs font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/60 rounded transition-colors flex items-center justify-center gap-1"
                         >
@@ -1757,7 +1786,7 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* HTTP Request Console panel */}
-              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg space-y-4">
+              <div id="rest-generator" className="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg space-y-4">
                 <div className="border-b border-slate-800 pb-3">
                   <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">Gerador de Chamadas REST</h2>
                   <p className="text-xs text-slate-400">Monte e dispare chamadas experimentais</p>
@@ -2025,32 +2054,54 @@ export default function App() {
                       </div>
                     </div>
 
-                    {['POST', 'PUT'].includes(pgMethod) && (
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="block text-4xs text-slate-500 font-bold">BODY (JSON)</label>
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (pgEndpoint.endsWith('/reschedule')) {
-                                setPgBody('{\n  "data": "2026-10-13",\n  "horaInicial": "10:00"\n}');
-                              } else {
-                                setPgBody('{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "2026-10-12",\n  "horaInicial": "11:00"\n}');
-                              }
-                            }}
-                            className="text-emerald-400 hover:text-emerald-300 text-3xs font-semibold"
-                          >
-                            Carregar Exemplo
-                          </button>
-                        </div>
-                        <textarea 
-                          rows={6} 
-                          value={pgBody} 
-                          onChange={e => setPgBody(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-white focus:outline-none"
-                        ></textarea>
-                      </div>
-                    )}
+                    {(() => {
+                      const currentObj = ROUTE_OBJECTIVES.find(o => o.id === selectedObjectiveId);
+                      if (currentObj?.expectsBody) {
+                        return (
+                          <div>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="block text-4xs text-emerald-400 font-mono font-bold uppercase tracking-wider">
+                                BODY (JSON)
+                              </label>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  if (currentObj.defaultBody) {
+                                    setPgBody(currentObj.defaultBody);
+                                  }
+                                }}
+                                className="text-emerald-400 hover:text-emerald-300 text-3xs font-semibold font-mono"
+                                title="Restaurar JSON original da rota"
+                              >
+                                Restaurar Exemplo Padrão
+                              </button>
+                            </div>
+                            <textarea 
+                              rows={6} 
+                              value={pgBody} 
+                              onChange={e => setPgBody(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-white focus:outline-none focus:border-emerald-500"
+                            ></textarea>
+                          </div>
+                        );
+                      }
+
+                      if (currentObj?.id === 'confirm_appointment') {
+                        return (
+                          <div className="p-3 rounded-lg border border-slate-850 bg-slate-950/80 text-3xs font-mono text-slate-300 space-y-1">
+                            <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              <span>Rota PUT sem Body (Path Parameter exclusivo)</span>
+                            </div>
+                            <p className="text-slate-400 font-sans leading-relaxed">
+                              Esta rota opera exclusivamente com o parâmetro <code>:id</code> na URL (<code className="text-emerald-300 font-mono font-bold">{pgEndpoint}</code>). Nenhum corpo JSON (Body) é necessário nem enviado no cURL.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })()}
                   </div>
 
                   <button 
