@@ -15,6 +15,8 @@ import {
   requireBasicAuth, 
   requireBearerToken, 
   getActiveTokensList,
+  setTokenTtlSeconds,
+  getTokenTtlSeconds,
   API_KEY_VALUE,
   BASIC_USER,
   BASIC_PASS,
@@ -29,8 +31,11 @@ export const apiRouter = Router();
 // ==========================================
 export type AuthMode = 'apikey' | 'basic' | 'bearer' | 'any' | 'none';
 
-// Load initial routeAuthConfig from DB if previously saved
+// Load initial routeAuthConfig and tokenTtlSeconds from DB if previously saved
 const initialDb = readDB();
+if (initialDb.tokenTtlSeconds && typeof initialDb.tokenTtlSeconds === 'number') {
+  setTokenTtlSeconds(initialDb.tokenTtlSeconds);
+}
 
 export const routeAuthConfig: Record<string, AuthMode> = {
   'GET /api/appointments': 'apikey',
@@ -182,13 +187,45 @@ apiRouter.get('/credentials', (req: Request, res: Response) => {
       tokenRoute: '/api/auth/token'
     },
     activeTokens: getActiveTokensList(),
-    routeAuthConfig
+    routeAuthConfig,
+    tokenTtlSeconds: getTokenTtlSeconds()
   });
 });
 
 // GET current dynamic auth policy matrix
 apiRouter.get('/config/auth', (req: Request, res: Response) => {
   res.json(routeAuthConfig);
+});
+
+// GET / POST internal token TTL configuration (used exclusively by the agenda panel)
+apiRouter.get('/config/token-ttl', (req: Request, res: Response) => {
+  res.json({ tokenTtlSeconds: getTokenTtlSeconds() });
+});
+
+apiRouter.post('/config/token-ttl', (req: Request, res: Response) => {
+  const { ttlSeconds } = req.body;
+  const num = Number(ttlSeconds);
+  if (!num || num <= 0) {
+    return res.status(400).json({ 
+      error: 'Invalid ttlSeconds', 
+      message: 'Informe a validade em segundos (ex: 60, 300, 600, 1800, 86400).' 
+    });
+  }
+
+  setTokenTtlSeconds(num);
+
+  try {
+    const currentDb = readDB();
+    currentDb.tokenTtlSeconds = num;
+    writeDB(currentDb);
+  } catch (err) {
+    console.error('Failed to persist tokenTtlSeconds to agenda.json:', err);
+  }
+
+  res.json({ 
+    message: `Tempo de validade dos novos Bearer Tokens configurado para ${num}s.`,
+    tokenTtlSeconds: num 
+  });
 });
 
 // POST update auth policy for a specific route (or batch of routes)

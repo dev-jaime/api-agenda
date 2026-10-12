@@ -1,12 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Storing active access tokens in memory (5-minute expiration)
+// Storing active access tokens in memory
 interface ActiveToken {
   token: string;
   expiresAt: number;
 }
 
 const activeTokens: ActiveToken[] = [];
+
+// Configurable Token TTL in seconds (Default: 30 minutes = 1800s)
+let configuredTokenTtlSeconds = 1800;
+
+export function setTokenTtlSeconds(seconds: number) {
+  if (typeof seconds === 'number' && seconds > 0) {
+    configuredTokenTtlSeconds = seconds;
+  }
+}
+
+export function getTokenTtlSeconds(): number {
+  return configuredTokenTtlSeconds;
+}
 
 // Hardcoded credentials for simulation and LLM validation
 export const API_KEY_VALUE = 'agenda_secret_apikey_2026';
@@ -15,14 +28,14 @@ export const BASIC_PASS = 'super_secret_password';
 export const CLIENT_ID = 'llm_client_id';
 export const CLIENT_SECRET = 'llm_client_secret';
 
-// Helper to generate a Bearer token
+// Helper to generate a Bearer token with the currently configured TTL
 export function generateBearerToken(clientId: string, clientSecret: string): { accessToken: string; expiresIn: number } | null {
   if (clientId !== CLIENT_ID || clientSecret !== CLIENT_SECRET) {
     return null;
   }
   
   const token = `bearer_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
-  const expiresIn = 300; // 5 minutes in seconds
+  const expiresIn = configuredTokenTtlSeconds;
   const expiresAt = Date.now() + expiresIn * 1000;
   
   activeTokens.push({ token, expiresAt });
@@ -121,7 +134,7 @@ export function requireBearerToken(req: Request, res: Response, next: NextFuncti
       error: 'Unauthorized',
       code: 'TOKEN_EXPIRED',
       message: 'Bearer Token expired.',
-      help: 'Bearer tokens are valid for 5 minutes. Generate a new token with POST /api/auth/token.'
+      help: `Este Bearer token expirou. O tempo de validade configurado é de ${configuredTokenTtlSeconds}s. Gere um novo token com POST /api/auth/token.`
     });
   }
   

@@ -33,6 +33,7 @@ export interface DBStructure {
   exams: string[];
   appointments: Appointment[];
   routeAuthConfig?: Record<string, string>;
+  tokenTtlSeconds?: number;
 }
 
 const DEFAULT_DB: DBStructure = {

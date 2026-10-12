@@ -55,6 +55,7 @@ interface Credentials {
   bearerToken: { clientId: string; clientSecret: string; tokenRoute: string };
   activeTokens: { token: string; timeLeftSeconds: number }[];
   routeAuthConfig?: Record<string, string>;
+  tokenTtlSeconds?: number;
 }
 
 export interface RouteObjective {
@@ -231,6 +232,47 @@ export default function App() {
   const [pgClientId, setPgClientId] = useState('llm_client_id');
   const [pgClientSecret, setPgClientSecret] = useState('llm_client_secret');
 
+  // Token TTL (validity duration) in seconds - Default: 30 minutes (1800s)
+  const [tokenTtl, setTokenTtl] = useState<number>(1800);
+
+  // Helper to format TTL seconds to human-readable label
+  const formatTtlLabel = (seconds: number) => {
+    if (seconds === 60) return '1 min';
+    if (seconds === 300) return '5 min';
+    if (seconds === 600) return '10 min';
+    if (seconds === 1800) return '30 min (Padrão)';
+    if (seconds === 86400) return '24h';
+    return `${seconds}s`;
+  };
+
+  // Update token TTL in the backend and sync
+  const handleUpdateTokenTtl = async (newTtl: number) => {
+    setTokenTtl(newTtl);
+    try {
+      const res = await fetch('/api/config/token-ttl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ttlSeconds: newTtl })
+      });
+      if (res.ok) {
+        showBanner("success", `Validade dos novos Bearer Tokens configurada para ${formatTtlLabel(newTtl)}.`);
+
+        // Background sync to Render cloud if configured
+        if (apiHostUrl && apiHostUrl.startsWith('http')) {
+          fetch(`${apiHostUrl.replace(/\/+$/, '')}/api/config/token-ttl`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ttlSeconds: newTtl })
+          }).catch(() => {});
+        }
+
+        fetchData();
+      }
+    } catch (err: any) {
+      console.error('Falha ao atualizar TTL do token:', err);
+    }
+  };
+
   // Load baseline data
   const fetchData = async () => {
     setLoading(true);
@@ -259,6 +301,9 @@ export default function App() {
       setCredentials(credData);
       if (credData.routeAuthConfig) {
         setRouteAuthConfig(credData.routeAuthConfig);
+      }
+      if (credData.tokenTtlSeconds) {
+        setTokenTtl(credData.tokenTtlSeconds);
       }
 
       // Load appointments with internal admin header so background UI never fails regardless of test policies
@@ -408,6 +453,20 @@ export default function App() {
     fetchData();
   }, []);
 
+  // Periodic live countdown for active tokens so user can watch expiry in real time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCredentials(prev => {
+        if (!prev || !prev.activeTokens || prev.activeTokens.length === 0) return prev;
+        const updated = prev.activeTokens
+          .map(t => ({ ...t, timeLeftSeconds: Math.max(0, t.timeLeftSeconds - 1) }))
+          .filter(t => t.timeLeftSeconds > 0);
+        return { ...prev, activeTokens: updated };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Update playground curl preview whenever options change
   useEffect(() => {
     generateCurl();
@@ -533,7 +592,7 @@ export default function App() {
       setPgResponse(JSON.stringify(data, null, 2));
       
       if (res.ok) {
-        showBanner("success", "Novo Bearer Token obtido com sucesso! Válido por 5 minutos.");
+        showBanner("success", `Novo Bearer Token obtido com sucesso! Válido por ${formatTtlLabel(data.expires_in || tokenTtl)}.`);
         setPgAuthType('bearer');
         setPgAuthCreds('valid');
       }
@@ -1480,12 +1539,36 @@ export default function App() {
                 </div>
 
                 {/* Bearer credentials */}
-                <div className="border border-slate-800 bg-slate-950 rounded-xl p-5 space-y-2 shadow-inner">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-400" />
-                    <span className="font-bold text-2xs text-white uppercase tracking-wider font-mono">3. Token Bearer (OAuth)</span>
+                <div className="border border-slate-800 bg-slate-950 rounded-xl p-5 space-y-3 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-2xs text-white uppercase tracking-wider font-mono">3. Token Bearer (OAuth)</span>
+                    </div>
+                    <span className="text-4xs font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded">
+                      TTL: {formatTtlLabel(tokenTtl)}
+                    </span>
                   </div>
-                  <p className="text-2xs text-slate-400 leading-relaxed">Emissão de token em 2 etapas com validade de 5m.</p>
+                  <p className="text-2xs text-slate-400 leading-relaxed">Emissão de token em 2 etapas com validade configurável.</p>
+                  
+                  {/* Combobox de tempo no Card de Credenciais */}
+                  <div className="space-y-1 pt-1">
+                    <label className="text-4xs text-slate-400 font-bold uppercase tracking-wider font-mono block">
+                      Validade do Token:
+                    </label>
+                    <select
+                      value={tokenTtl}
+                      onChange={e => handleUpdateTokenTtl(Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 font-mono text-2xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value={60}>1 min (teste rápido de expiração)</option>
+                      <option value={300}>5 min</option>
+                      <option value={600}>10 min</option>
+                      <option value={1800}>30 min (Padrão de mercado)</option>
+                      <option value={86400}>24h (Longa duração / permanente)</option>
+                    </select>
+                  </div>
+
                   <div className="bg-slate-900 p-3 rounded-lg text-xs space-y-1.5 border border-slate-850 font-mono">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Client ID:</span>
@@ -1496,6 +1579,27 @@ export default function App() {
                       <span className="font-bold text-white text-3xs">{credentials?.bearerToken.clientSecret}</span>
                     </div>
                   </div>
+
+                  {/* Active Tokens list */}
+                  {credentials?.activeTokens && credentials.activeTokens.length > 0 && (
+                    <div className="bg-slate-900/90 border border-slate-800 p-2.5 rounded-lg space-y-1.5 font-mono text-3xs">
+                      <div className="flex items-center justify-between text-emerald-400 font-bold">
+                        <span>Tokens Ativos ({credentials.activeTokens.length}):</span>
+                        <span className="text-4xs uppercase">Tempo Restante</span>
+                      </div>
+                      {credentials.activeTokens.map((t, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 text-slate-300 bg-slate-950 p-1.5 rounded border border-slate-850">
+                          <code className="text-emerald-300 font-mono truncate max-w-[130px] select-all">{t.token}</code>
+                          <span className="text-emerald-400 font-bold shrink-0">
+                            {t.timeLeftSeconds >= 60 
+                              ? `${Math.floor(t.timeLeftSeconds / 60)}m ${t.timeLeftSeconds % 60}s`
+                              : `${t.timeLeftSeconds}s`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="text-4xs text-slate-500 font-mono uppercase tracking-widest">Rotas: PUT /confirm, POST /reschedule</div>
                 </div>
 
@@ -1667,7 +1771,36 @@ export default function App() {
                       <span className="font-bold text-white block text-2xs font-mono uppercase tracking-wider">Passo 1: Obter Access Token</span>
                       <span className="text-3xs text-slate-950 font-mono font-bold bg-emerald-400 px-1.5 py-0.5 rounded">POST /api/auth/token</span>
                     </div>
-                    <p className="text-slate-400 text-3xs font-mono leading-relaxed">Insira as credenciais cliente para alimentar a pilha Bearer do Node:</p>
+                    <p className="text-slate-400 text-3xs font-mono leading-relaxed">
+                      Escolha o tempo de validade do token antes de gerar e informe as credenciais de cliente:
+                    </p>
+
+                    {/* Combobox de tempo do token */}
+                    <div className="space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                      <div className="flex items-center justify-between">
+                        <label className="text-4xs text-emerald-400 font-bold block uppercase tracking-wider font-mono">
+                          ⏱️ Validade do Bearer Token (Combobox):
+                        </label>
+                        <span className="text-4xs text-slate-500 font-mono">
+                          Padrão: 30 min
+                        </span>
+                      </div>
+                      <select 
+                        value={tokenTtl}
+                        onChange={e => handleUpdateTokenTtl(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 font-mono text-xs text-white focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value={60}>1 min (teste rápido de expiração)</option>
+                        <option value={300}>5 min</option>
+                        <option value={600}>10 min</option>
+                        <option value={1800}>30 min (Padrão de mercado)</option>
+                        <option value={86400}>24h (Longa duração / permanente)</option>
+                      </select>
+                      <span className="text-4xs text-slate-500 font-mono block">
+                        * O tempo é configurado no painel e aplicado pelo servidor sem expor parâmetros na rota /api/auth/token.
+                      </span>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-4xs text-slate-500 font-bold block mb-1">CLIENT ID</label>
@@ -1690,9 +1823,10 @@ export default function App() {
                     </div>
                     <button 
                       onClick={handleRequestToken}
-                      className="w-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-lg py-2 text-2xs font-bold transition-all shadow-md uppercase tracking-wider"
+                      className="w-full bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-lg py-2 text-2xs font-bold transition-all shadow-md uppercase tracking-wider flex items-center justify-center gap-1.5"
                     >
-                      Solicitar Bearer Token (Válido 5 minutos)
+                      <Activity className="w-3.5 h-3.5" />
+                      Solicitar Bearer Token (Validade: {formatTtlLabel(tokenTtl)})
                     </button>
                   </div>
 
