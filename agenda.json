@@ -1,0 +1,89 @@
+{
+  "doctors": [
+    {
+      "id": "dr-marcos",
+      "name": "Dr. Marcos Paulo",
+      "specialty": "Pediatria",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "breakTime": null,
+      "breakDuration": 0
+    },
+    {
+      "id": "dra-elena",
+      "name": "Dra. Elena Souza",
+      "specialty": "Obstetrícia",
+      "startTime": "14:00",
+      "endTime": "20:00",
+      "breakTime": null,
+      "breakDuration": 0
+    },
+    {
+      "id": "dra-vanessa",
+      "name": "Dr. Vanessa",
+      "specialty": "Clínica Geral",
+      "startTime": "10:00",
+      "endTime": "16:00",
+      "breakTime": "12:40",
+      "breakDuration": 20
+    }
+  ],
+  "specialties": [
+    "Pediatria",
+    "Obstetrícia",
+    "Clínica Geral"
+  ],
+  "exams": [
+    "Hemograma",
+    "Ultrassonografia",
+    "Raio-X",
+    "Urina Completa",
+    "Eletrocardiograma"
+  ],
+  "appointments": [
+    {
+      "id": "app-1",
+      "paciente": "Bernardo Silva",
+      "doutor": "Dr. Marcos Paulo",
+      "especialidade": "Pediatria",
+      "tipo": "Consulta",
+      "data": "2026-10-16",
+      "horaInicial": "09:00",
+      "horaFinal": "10:00",
+      "status": "agendado"
+    },
+    {
+      "id": "app-2",
+      "paciente": "Mariana Lins",
+      "doutor": "Dra. Elena Souza",
+      "especialidade": "Obstetrícia",
+      "tipo": "Consulta",
+      "data": "2026-10-16",
+      "horaInicial": "15:00",
+      "horaFinal": "16:00",
+      "status": "confirmado"
+    },
+    {
+      "id": "app-3",
+      "paciente": "Arthur Ramos",
+      "doutor": "Dr. Vanessa",
+      "especialidade": "Clínica Geral",
+      "tipo": "Retorno",
+      "data": "2026-10-17",
+      "horaInicial": "10:30",
+      "horaFinal": "11:00",
+      "status": "agendado"
+    },
+    {
+      "id": "app-4",
+      "paciente": "Carla Albuquerque",
+      "doutor": null,
+      "especialidade": null,
+      "tipo": "Exame",
+      "data": "2026-10-16",
+      "horaInicial": "07:30",
+      "horaFinal": "08:00",
+      "status": "confirmado"
+    }
+  ]
+}

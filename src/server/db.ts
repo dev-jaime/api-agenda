@@ -36,109 +36,163 @@ export interface DBStructure {
   tokenTtlSeconds?: number;
 }
 
-const DEFAULT_DB: DBStructure = {
-  doctors: [
-    {
-      id: "dr-marcos",
-      name: "Dr. Marcos Paulo",
-      specialty: "Pediatria",
-      startTime: "08:00",
-      endTime: "14:00",
-      breakTime: null,
-      breakDuration: 0
-    },
-    {
-      id: "dra-elena",
-      name: "Dra. Elena Souza",
-      specialty: "Obstetrícia",
-      startTime: "14:00",
-      endTime: "20:00",
-      breakTime: null,
-      breakDuration: 0
-    },
-    {
-      id: "dra-vanessa",
-      name: "Dr. Vanessa",
-      specialty: "Clínica Geral",
-      startTime: "10:00",
-      endTime: "16:00",
-      breakTime: "12:40",
-      breakDuration: 20
-    }
-  ],
-  specialties: [
-    "Pediatria",
-    "Obstetrícia",
-    "Clínica Geral"
-  ],
-  exams: [
-    "Hemograma",
-    "Ultrassonografia",
-    "Raio-X",
-    "Urina Completa",
-    "Eletrocardiograma"
-  ],
-  appointments: [
-    {
-      id: "app-1",
-      paciente: "Bernardo Silva",
-      doutor: "Dr. Marcos Paulo",
-      especialidade: "Pediatria",
-      tipo: "Consulta",
-      data: "2026-10-12", // Next Monday
-      horaInicial: "09:00",
-      horaFinal: "10:00",
-      status: "agendado"
-    },
-    {
-      id: "app-2",
-      paciente: "Mariana Lins",
-      doutor: "Dra. Elena Souza",
-      especialidade: "Obstetrícia",
-      tipo: "Consulta",
-      data: "2026-10-12",
-      horaInicial: "15:00",
-      horaFinal: "16:00",
-      status: "confirmado"
-    },
-    {
-      id: "app-3",
-      paciente: "Arthur Ramos",
-      doutor: "Dr. Vanessa",
-      especialidade: "Clínica Geral",
-      tipo: "Retorno",
-      data: "2026-10-13", // Next Tuesday
-      horaInicial: "10:30",
-      horaFinal: "11:00",
-      status: "agendado"
-    },
-    {
-      id: "app-4",
-      paciente: "Carla Albuquerque",
-      doutor: null,
-      especialidade: null,
-      tipo: "Exame",
-      data: "2026-10-12",
-      horaInicial: "07:30",
-      horaFinal: "08:00",
-      status: "confirmado"
-    }
-  ]
-};
-
-// Ensure DB file exists
-export function initDB(): DBStructure {
+export function getRelativeDate(offsetDays: number = 0): string {
+  const tz = process.env.TZ || 'America/Sao_Paulo';
+  const now = new Date();
   try {
-    if (!fs.existsSync(DB_PATH)) {
-      fs.writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2), 'utf-8');
-      return DEFAULT_DB;
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    });
+    const parts = formatter.formatToParts(now);
+    const y = parseInt(parts.find(p => p.type === 'year')?.value || `${now.getFullYear()}`, 10);
+    const m = parseInt(parts.find(p => p.type === 'month')?.value || `${now.getMonth() + 1}`, 10);
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || `${now.getDate()}`, 10);
+    const targetDate = new Date(Date.UTC(y, m - 1, day + offsetDays));
+    return targetDate.toISOString().slice(0, 10);
+  } catch {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+}
+
+export function generateDefaultDB(): DBStructure {
+  const todayStr = getRelativeDate(0);
+  const tomorrowStr = getRelativeDate(1);
+
+  return {
+    doctors: [
+      {
+        id: "dr-marcos",
+        name: "Dr. Marcos Paulo",
+        specialty: "Pediatria",
+        startTime: "08:00",
+        endTime: "14:00",
+        breakTime: null,
+        breakDuration: 0
+      },
+      {
+        id: "dra-elena",
+        name: "Dra. Elena Souza",
+        specialty: "Obstetrícia",
+        startTime: "14:00",
+        endTime: "20:00",
+        breakTime: null,
+        breakDuration: 0
+      },
+      {
+        id: "dra-vanessa",
+        name: "Dr. Vanessa",
+        specialty: "Clínica Geral",
+        startTime: "10:00",
+        endTime: "16:00",
+        breakTime: "12:40",
+        breakDuration: 20
+      }
+    ],
+    specialties: [
+      "Pediatria",
+      "Obstetrícia",
+      "Clínica Geral"
+    ],
+    exams: [
+      "Hemograma",
+      "Ultrassonografia",
+      "Raio-X",
+      "Urina Completa",
+      "Eletrocardiograma"
+    ],
+    appointments: [
+      {
+        id: "app-1",
+        paciente: "Bernardo Silva",
+        doutor: "Dr. Marcos Paulo",
+        especialidade: "Pediatria",
+        tipo: "Consulta",
+        data: todayStr, // Hoje
+        horaInicial: "09:00",
+        horaFinal: "10:00",
+        status: "agendado"
+      },
+      {
+        id: "app-2",
+        paciente: "Mariana Lins",
+        doutor: "Dra. Elena Souza",
+        especialidade: "Obstetrícia",
+        tipo: "Consulta",
+        data: todayStr, // Hoje
+        horaInicial: "15:00",
+        horaFinal: "16:00",
+        status: "confirmado"
+      },
+      {
+        id: "app-3",
+        paciente: "Arthur Ramos",
+        doutor: "Dr. Vanessa",
+        especialidade: "Clínica Geral",
+        tipo: "Retorno",
+        data: tomorrowStr, // Amanhã
+        horaInicial: "10:30",
+        horaFinal: "11:00",
+        status: "agendado"
+      },
+      {
+        id: "app-4",
+        paciente: "Carla Albuquerque",
+        doutor: null,
+        especialidade: null,
+        tipo: "Exame",
+        data: todayStr, // Hoje
+        horaInicial: "07:30",
+        horaFinal: "08:00",
+        status: "confirmado"
+      }
+    ]
+  };
+}
+
+export const DEFAULT_DB: DBStructure = generateDefaultDB();
+
+// Ensure DB file exists and contains appointments matching the current date
+export function initDB(forceRefresh: boolean = false): DBStructure {
+  try {
+    const todayStr = getRelativeDate(0);
+
+    if (!fs.existsSync(DB_PATH) || forceRefresh) {
+      const defaultDb = generateDefaultDB();
+      fs.writeFileSync(DB_PATH, JSON.stringify(defaultDb, null, 2), 'utf-8');
+      return defaultDb;
     }
+
     const content = fs.readFileSync(DB_PATH, 'utf-8');
-    return JSON.parse(content);
+    const data: DBStructure = JSON.parse(content);
+
+    // If appointments is missing, empty, or does not contain any appointment for today:
+    const hasTodayAppointment = Array.isArray(data.appointments) &&
+      data.appointments.some(a => typeof a.data === 'string' && a.data === todayStr);
+
+    if (!hasTodayAppointment) {
+      console.log(`[DB] Atualizando agenda inicial com base na data de hoje (${todayStr})...`);
+      const freshDb = generateDefaultDB();
+      // Retain custom routeAuthConfig and tokenTtlSeconds if configured
+      if (data.routeAuthConfig) freshDb.routeAuthConfig = data.routeAuthConfig;
+      if (data.tokenTtlSeconds) freshDb.tokenTtlSeconds = data.tokenTtlSeconds;
+      fs.writeFileSync(DB_PATH, JSON.stringify(freshDb, null, 2), 'utf-8');
+      return freshDb;
+    }
+
+    return data;
   } catch (err) {
     console.error("Error reading DB file, resetting:", err);
-    fs.writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2), 'utf-8');
-    return DEFAULT_DB;
+    const defaultDb = generateDefaultDB();
+    fs.writeFileSync(DB_PATH, JSON.stringify(defaultDb, null, 2), 'utf-8');
+    return defaultDb;
   }
 }
 

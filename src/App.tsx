@@ -58,6 +58,27 @@ interface Credentials {
   tokenTtlSeconds?: number;
 }
 
+export function getRelativeDateStr(offsetDays: number = 0): string {
+  const now = new Date();
+  now.setDate(now.getDate() + offsetDays);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function formatShortDate(dateStr: string): string {
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}`;
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+}
+
 export interface RouteObjective {
   id: string;
   name: string;
@@ -98,7 +119,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     pathTemplate: '/api/appointments',
     routeKey: 'POST /api/appointments',
     expectsBody: true,
-    defaultBody: '{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "2026-10-12",\n  "horaInicial": "11:00"\n}'
+    defaultBody: `{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "${getRelativeDateStr(0)}",\n  "horaInicial": "11:00"\n}`
   },
   {
     id: 'confirm_appointment',
@@ -119,7 +140,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
     routeKey: 'POST /api/appointments/:id/reschedule',
     requiresId: true,
     expectsBody: true,
-    defaultBody: '{\n  "data": "2026-10-13",\n  "horaInicial": "10:00"\n}'
+    defaultBody: `{\n  "data": "${getRelativeDateStr(1)}",\n  "horaInicial": "10:00"\n}`
   },
   {
     id: 'delete_appointment',
@@ -190,7 +211,7 @@ export default function App() {
   const [dbRaw, setDbRaw] = useState<any>(null);
   
   // Selection states
-  const [selectedDate, setSelectedDate] = useState<string>('2026-10-12'); // Default to seed date next Monday
+  const [selectedDate, setSelectedDate] = useState<string>(() => getRelativeDateStr(0));
   const [loading, setLoading] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -199,12 +220,12 @@ export default function App() {
   const [newAppPaciente, setNewAppPaciente] = useState('');
   const [newAppTipo, setNewAppTipo] = useState<'Consulta' | 'Exame' | 'Retorno'>('Consulta');
   const [newAppDoctor, setNewAppDoctor] = useState('');
-  const [newAppDate, setNewAppDate] = useState('2026-10-12');
+  const [newAppDate, setNewAppDate] = useState<string>(() => getRelativeDateStr(0));
   const [newAppHora, setNewAppHora] = useState('09:00');
   
   // Reschedule state
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState('2026-10-12');
+  const [rescheduleDate, setRescheduleDate] = useState<string>(() => getRelativeDateStr(1));
   const [rescheduleHora, setRescheduleHora] = useState('09:00');
 
   // Form states - Doctors
@@ -451,7 +472,13 @@ export default function App() {
 
     // Configurar o corpo (body) de acordo com a exigência da rota, limpando completamente se não exigir
     if (obj.expectsBody && obj.defaultBody) {
-      setPgBody(obj.defaultBody);
+      let bodyContent = obj.defaultBody;
+      if (obj.id === 'create_appointment') {
+        bodyContent = `{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "${getRelativeDateStr(0)}",\n  "horaInicial": "11:00"\n}`;
+      } else if (obj.id === 'reschedule_appointment') {
+        bodyContent = `{\n  "data": "${getRelativeDateStr(1)}",\n  "horaInicial": "10:00"\n}`;
+      }
+      setPgBody(bodyContent);
     } else {
       setPgBody('');
     }
@@ -1161,16 +1188,18 @@ export default function App() {
                   />
                   <div className="flex gap-1 border-l border-slate-850 pl-2">
                     <button 
-                      onClick={() => setSelectedDate('2026-10-12')} 
-                      className={`px-2 py-1 text-2xs font-bold rounded ${selectedDate === '2026-10-12' ? 'bg-emerald-400 text-slate-950' : 'bg-slate-950 text-slate-400 hover:bg-slate-850'}`}
+                      onClick={() => setSelectedDate(getRelativeDateStr(0))} 
+                      className={`px-2 py-1 text-2xs font-bold rounded ${selectedDate === getRelativeDateStr(0) ? 'bg-emerald-400 text-slate-950' : 'bg-slate-950 text-slate-400 hover:bg-slate-850'}`}
+                      title={`Hoje (${getRelativeDateStr(0)})`}
                     >
-                      12/Out
+                      Hoje ({formatShortDate(getRelativeDateStr(0))})
                     </button>
                     <button 
-                      onClick={() => setSelectedDate('2026-10-13')} 
-                      className={`px-2 py-1 text-2xs font-bold rounded ${selectedDate === '2026-10-13' ? 'bg-emerald-400 text-slate-950' : 'bg-slate-950 text-slate-400 hover:bg-slate-850'}`}
+                      onClick={() => setSelectedDate(getRelativeDateStr(1))} 
+                      className={`px-2 py-1 text-2xs font-bold rounded ${selectedDate === getRelativeDateStr(1) ? 'bg-emerald-400 text-slate-950' : 'bg-slate-950 text-slate-400 hover:bg-slate-850'}`}
+                      title={`Amanhã (${getRelativeDateStr(1)})`}
                     >
-                      13/Out
+                      Amanhã ({formatShortDate(getRelativeDateStr(1))})
                     </button>
                   </div>
                 </div>
@@ -2067,11 +2096,17 @@ export default function App() {
                                 type="button"
                                 onClick={() => {
                                   if (currentObj.defaultBody) {
-                                    setPgBody(currentObj.defaultBody);
+                                    let defaultVal = currentObj.defaultBody;
+                                    if (currentObj.id === 'create_appointment') {
+                                      defaultVal = `{\n  "paciente": "Gisela Neves",\n  "tipo": "Consulta",\n  "doutor": "Dr. Marcos Paulo",\n  "data": "${getRelativeDateStr(0)}",\n  "horaInicial": "11:00"\n}`;
+                                    } else if (currentObj.id === 'reschedule_appointment') {
+                                      defaultVal = `{\n  "data": "${getRelativeDateStr(1)}",\n  "horaInicial": "10:00"\n}`;
+                                    }
+                                    setPgBody(defaultVal);
                                   }
                                 }}
                                 className="text-emerald-400 hover:text-emerald-300 text-3xs font-semibold font-mono"
-                                title="Restaurar JSON original da rota"
+                                title="Restaurar JSON original da rota com a data atual"
                               >
                                 Restaurar Exemplo Padrão
                               </button>
