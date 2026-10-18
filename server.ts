@@ -30,8 +30,8 @@ async function startServer() {
   // Mount API router
   app.use('/api', apiRouter);
 
-  // Determine if we're in production or dev
-  const isProd = process.env.NODE_ENV === 'production' || fs.existsSync(path.resolve(__dirname, 'dist'));
+  // In development, always use Vite middleware for live reload unless explicitly running in production
+  const isProd = process.env.NODE_ENV === 'production' && fs.existsSync(path.resolve(__dirname, 'dist'));
 
   if (!isProd) {
     console.log('Starting server in DEVELOPMENT mode with Vite Middleware...');

@@ -95,7 +95,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'list_appointments',
     name: 'Listar todos os agendamentos',
-    description: 'Retorna a lista de compromissos cadastrados na agenda',
+    description: 'Retorna a lista de compromissos marcados e horários livres. Parâmetros opcionais de query: ?date=YYYY-MM-DD ou ?start=YYYY-MM-DD&end=YYYY-MM-DD.',
     method: 'GET',
     pathTemplate: '/api/appointments',
     routeKey: 'GET /api/appointments',
@@ -104,7 +104,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'get_appointment',
     name: 'Consultar agendamento por ID',
-    description: 'Busca os detalhes de um compromisso específico',
+    description: 'Busca os detalhes completos de um compromisso específico pelo ID.',
     method: 'GET',
     pathTemplate: '/api/appointments/:id',
     routeKey: 'GET /api/appointments/:id',
@@ -114,7 +114,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'create_appointment',
     name: 'Criar novo agendamento',
-    description: 'Registra uma nova Consulta, Exame ou Retorno',
+    description: 'Registra uma nova Consulta (1h), Retorno (30m) ou Exame (05h-09h30) com validação de horário.',
     method: 'POST',
     pathTemplate: '/api/appointments',
     routeKey: 'POST /api/appointments',
@@ -124,7 +124,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'confirm_appointment',
     name: 'Confirmar agendamento (Presença)',
-    description: 'Muda o status do compromisso de agendado para confirmado',
+    description: 'Muda o status do compromisso de agendado para confirmado (exige Bearer Token).',
     method: 'PUT',
     pathTemplate: '/api/appointments/:id/confirm',
     routeKey: 'PUT /api/appointments/:id/confirm',
@@ -134,7 +134,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'reschedule_appointment',
     name: 'Remarcar agendamento',
-    description: 'Remarca para mesma data (confirmado) ou data futura (remarcado)',
+    description: 'Remarca para mesma data (status confirmado) ou data futura (status remarcado). O anterior é cancelado.',
     method: 'POST',
     pathTemplate: '/api/appointments/:id/reschedule',
     routeKey: 'POST /api/appointments/:id/reschedule',
@@ -145,7 +145,7 @@ export const ROUTE_OBJECTIVES: RouteObjective[] = [
   {
     id: 'delete_appointment',
     name: 'Remover agendamento',
-    description: 'Exclui o registro da agenda abrindo o horário para marcação',
+    description: 'Exclui o registro da agenda abrindo o horário para nova marcação (exige Basic Auth).',
     method: 'DELETE',
     pathTemplate: '/api/appointments/:id',
     routeKey: 'DELETE /api/appointments/:id',
@@ -266,6 +266,7 @@ export default function App() {
 
   // Token TTL (validity duration) in seconds - Default: 30 minutes (1800s)
   const [tokenTtl, setTokenTtl] = useState<number>(1800);
+  const [pgQueryParams, setPgQueryParams] = useState<string>('');
 
   // Helper to format TTL seconds to human-readable label
   const formatTtlLabel = (seconds: number) => {
@@ -482,6 +483,7 @@ export default function App() {
     } else {
       setPgBody('');
     }
+    setPgQueryParams('');
 
     // Auto-select auth based on current policy in routeAuthConfig so they always marry by default
     const currentRequiredAuth = routeAuthConfig[obj.routeKey];
@@ -516,7 +518,7 @@ export default function App() {
   // Update playground curl preview whenever options change
   useEffect(() => {
     generateCurl();
-  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgClientId, pgClientSecret, apiHostUrl, curlHostMode, selectedObjectiveId]);
+  }, [pgEndpoint, pgMethod, pgAuthType, pgAuthCreds, pgBody, pgQueryParams, pgClientId, pgClientSecret, apiHostUrl, curlHostMode, selectedObjectiveId]);
 
   const showBanner = (type: 'success' | 'error', msg: string) => {
     if (type === 'success') {
@@ -533,7 +535,11 @@ export default function App() {
     const baseUrl = curlHostMode === 'render' 
       ? apiHostUrl.replace(/\/+$/, '') 
       : 'http://localhost:3000';
-    let curl = `curl -X ${pgMethod} "${baseUrl}${pgEndpoint}"`;
+    let url = `${baseUrl}${pgEndpoint}`;
+    if (pgMethod === 'GET' && pgQueryParams.trim().length > 0) {
+      url += `?${pgQueryParams.trim()}`;
+    }
+    let curl = `curl -X ${pgMethod} "${url}"`;
     
     // Auth headers
     if (pgAuthType === 'apikey') {
@@ -611,7 +617,10 @@ export default function App() {
       }
 
       const targetBase = simulatorTarget === 'render' ? apiHostUrl.replace(/\/+$/, '') : '';
-      const targetFullUrl = `${targetBase}${pgEndpoint}`;
+      let targetFullUrl = `${targetBase}${pgEndpoint}`;
+      if (pgMethod === 'GET' && pgQueryParams.trim().length > 0) {
+        targetFullUrl += `?${pgQueryParams.trim()}`;
+      }
 
       const res = await fetch(targetFullUrl, options);
       setPgResponseStatus(res.status);
@@ -1716,17 +1725,21 @@ export default function App() {
               {/* Matrix Table */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[
-                  { route: 'GET /api/appointments', desc: 'Listar todos os agendamentos', objectiveId: 'list_appointments' },
-                  { route: 'GET /api/appointments/:id', desc: 'Consultar agendamento por ID', objectiveId: 'get_appointment' },
-                  { route: 'POST /api/appointments', desc: 'Criar novo agendamento', objectiveId: 'create_appointment' },
-                  { route: 'DELETE /api/appointments/:id', desc: 'Remover agendamento', objectiveId: 'delete_appointment' },
-                  { route: 'PUT /api/appointments/:id/confirm', desc: 'Confirmar agendamento (Presença)', objectiveId: 'confirm_appointment' },
-                  { route: 'POST /api/appointments/:id/reschedule', desc: 'Remarcar agendamento', objectiveId: 'reschedule_appointment' },
-                ].map(({ route, desc, objectiveId }) => {
-                  const [method, path] = route.split(' ');
+                  'list_appointments',
+                  'get_appointment',
+                  'create_appointment',
+                  'confirm_appointment',
+                  'reschedule_appointment',
+                  'delete_appointment'
+                ].map((targetId) => {
+                  const obj = ROUTE_OBJECTIVES.find(o => o.id === targetId);
+                  if (!obj) return null;
+                  const method = obj.method;
+                  const path = obj.pathTemplate;
+                  const route = `${method} ${path}`;
                   const currentMode = routeAuthConfig[route] || 'apikey';
                   return (
-                    <div key={route} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between hover:border-slate-700 transition-colors">
+                    <div key={obj.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 flex flex-col justify-between hover:border-slate-700 transition-colors">
                       <div className="space-y-2">
                         {/* Header with method badge, current mode, and copy button */}
                         <div className="flex items-center justify-between gap-2">
@@ -1760,13 +1773,16 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* Full path visible clearly without truncation */}
-                        <div>
-                          <p className="text-xs font-mono font-bold text-slate-100 break-all leading-snug">
-                            {path}
+                        {/* Title, Full Path, and Description clearly distinguished */}
+                        <div className="space-y-1">
+                          <h3 className="text-xs font-bold text-white leading-snug">
+                            {obj.name}
+                          </h3>
+                          <p className="text-2xs font-mono font-semibold text-emerald-400 break-all">
+                            {method} {path}
                           </p>
-                          <p className="text-3xs text-slate-400 mt-1 font-sans font-medium">
-                            {desc}
+                          <p className="text-3xs text-slate-400 mt-1 font-sans leading-relaxed">
+                            {obj.description}
                           </p>
                         </div>
                       </div>
@@ -1792,12 +1808,12 @@ export default function App() {
 
                         <button
                           onClick={() => {
-                            handleSelectObjective(objectiveId);
+                            handleSelectObjective(obj.id);
                             const elem = document.getElementById('rest-generator');
                             if (elem) {
                               elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
                             }
-                            showBanner("success", `Rota "${desc}" carregada e limpa no Playground!`);
+                            showBanner("success", `Rota "${obj.name}" carregada no Playground!`);
                           }}
                           className="w-full py-1 text-4xs font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800/60 rounded transition-colors flex items-center justify-center gap-1"
                         >
@@ -1962,6 +1978,73 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
+                      {pgMethod === 'GET' && (
+                        <div className="col-span-2 pb-2 space-y-2 bg-slate-950/70 p-3 rounded-lg border border-slate-850">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-4xs text-emerald-400 font-bold uppercase tracking-wider font-mono">
+                              🔍 PARÂMETROS DE QUERY (Opcional - Filtro de Data/Período)
+                            </label>
+                            {pgQueryParams && (
+                              <button 
+                                type="button"
+                                onClick={() => setPgQueryParams('')}
+                                className="text-4xs text-slate-400 hover:text-white font-mono underline"
+                              >
+                                Limpar filtros
+                              </button>
+                            )}
+                          </div>
+                          <input 
+                            type="text" 
+                            value={pgQueryParams} 
+                            onChange={e => setPgQueryParams(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-emerald-400 font-mono focus:border-emerald-500 focus:outline-none"
+                            placeholder="Ex: date=2026-10-18 ou start=2026-10-17&end=2026-10-18"
+                          />
+                          {selectedObjectiveId === 'list_appointments' && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              <span className="text-4xs text-slate-500 font-mono font-bold uppercase">Templates:</span>
+                              <button
+                                type="button"
+                                onClick={() => setPgQueryParams('')}
+                                className={`px-2 py-0.5 rounded text-4xs font-mono font-bold border transition-colors ${
+                                  !pgQueryParams ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                                }`}
+                              >
+                                Padrão (Hoje + Amanhã)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPgQueryParams(`date=${getRelativeDateStr(0)}`)}
+                                className={`px-2 py-0.5 rounded text-4xs font-mono font-bold border transition-colors ${
+                                  pgQueryParams === `date=${getRelativeDateStr(0)}` ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                                }`}
+                              >
+                                Apenas Hoje (?date={getRelativeDateStr(0)})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPgQueryParams(`date=${getRelativeDateStr(1)}`)}
+                                className={`px-2 py-0.5 rounded text-4xs font-mono font-bold border transition-colors ${
+                                  pgQueryParams === `date=${getRelativeDateStr(1)}` ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                                }`}
+                              >
+                                Apenas Amanhã (?date={getRelativeDateStr(1)})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPgQueryParams(`start=${getRelativeDateStr(0)}&end=${getRelativeDateStr(1)}`)}
+                                className={`px-2 py-0.5 rounded text-4xs font-mono font-bold border transition-colors ${
+                                  pgQueryParams === `start=${getRelativeDateStr(0)}&end=${getRelativeDateStr(1)}` ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                                }`}
+                              >
+                                Período (?start=...&end=...)
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div>
                         <label className="block text-4xs text-slate-500 font-bold mb-1">MÉTODO DE AUTENTICAÇÃO</label>
                         <select 

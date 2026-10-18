@@ -7,7 +7,9 @@ import {
   timeToMinutes, 
   minutesToTime, 
   isOverlapping, 
-  getDayOfWeek 
+  getDayOfWeek,
+  generateFreeSlots,
+  getRelativeDate
 } from './db';
 import { 
   generateBearerToken, 
@@ -430,24 +432,47 @@ apiRouter.post('/auth/token', (req: Request, res: Response) => {
 // 1. LIST APPOINTMENTS
 apiRouter.get('/appointments', dynamicAuth('GET /api/appointments'), (req: Request, res: Response) => {
   const db = readDB();
-  const { date, doctorId } = req.query;
-  
-  let appointments = db.appointments;
-  
+  const { date, start, end, doctorId } = req.query;
+
+  // Determine dates to process
+  let datesToProcess: string[] = [];
   if (date) {
-    appointments = appointments.filter(a => a.data === date);
+    datesToProcess = [date as string];
+  } else if (start && end) {
+    // Generate all dates in range [start, end]
+    const s = new Date(start as string);
+    const e = new Date(end as string);
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      datesToProcess.push(d.toISOString().slice(0, 10));
+    }
+  } else {
+    // Default to today and tomorrow
+    datesToProcess = [getRelativeDate(0), getRelativeDate(1)];
   }
-  
+
+  // Filter booked appointments based on range
+  let appointments = db.appointments.filter(a => datesToProcess.includes(a.data));
+
   if (doctorId) {
     appointments = appointments.filter(a => {
-      // Find doctor matching ID or name
-      if (!a.doutor) return false;
       const foundDoc = db.doctors.find(d => d.name === a.doutor || d.id === doctorId);
       return foundDoc ? foundDoc.id === doctorId : false;
     });
   }
-  
-  res.json(appointments);
+
+  // Generate free slots
+  const allAppointments = [...appointments];
+  for (const dStr of datesToProcess) {
+    const doctors = doctorId ? db.doctors.filter(d => d.id === doctorId) : db.doctors;
+
+    for (const doctor of doctors) {
+      const booked = appointments.filter(a => a.data === dStr && (a.doutor === doctor.name || a.doutor === doctor.id));
+      const freeSlots = generateFreeSlots(doctor, dStr, booked);
+      allAppointments.push(...freeSlots);
+    }
+  }
+
+  res.json(allAppointments);
 });
 
 // 2. GET APPOINTMENT BY ID

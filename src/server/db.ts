@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '../../agenda.json');
+const DB_PATH = path.join(process.cwd(), 'agenda.json');
 
 export interface Doctor {
   id: string;
@@ -66,36 +66,130 @@ export function generateDefaultDB(): DBStructure {
   const todayStr = getRelativeDate(0);
   const tomorrowStr = getRelativeDate(1);
 
+  const doctors: Doctor[] = [
+    {
+      id: "dr-marcos",
+      name: "Dr. Marcos Paulo",
+      specialty: "Pediatria",
+      startTime: "08:00",
+      endTime: "14:00",
+      breakTime: null,
+      breakDuration: 0
+    },
+    {
+      id: "dra-elena",
+      name: "Dra. Elena Souza",
+      specialty: "Obstetrícia",
+      startTime: "14:00",
+      endTime: "20:00",
+      breakTime: null,
+      breakDuration: 0
+    },
+    {
+      id: "dra-vanessa",
+      name: "Dr. Vanessa",
+      specialty: "Clínica Geral",
+      startTime: "10:00",
+      endTime: "16:00",
+      breakTime: "12:40",
+      breakDuration: 20
+    }
+  ];
+
+  const initialAppointments: Appointment[] = [
+    // Today
+    {
+      id: "app-1",
+      paciente: "Bernardo Silva",
+      doutor: "Dr. Marcos Paulo",
+      especialidade: "Pediatria",
+      tipo: "Consulta",
+      data: todayStr,
+      horaInicial: "09:00",
+      horaFinal: "10:00",
+      status: "agendado"
+    },
+    {
+      id: "app-2",
+      paciente: "Mariana Lins",
+      doutor: "Dra. Elena Souza",
+      especialidade: "Obstetrícia",
+      tipo: "Consulta",
+      data: todayStr,
+      horaInicial: "15:00",
+      horaFinal: "16:00",
+      status: "confirmado"
+    },
+    {
+      id: "app-4",
+      paciente: "Carla Albuquerque",
+      doutor: null,
+      especialidade: null,
+      tipo: "Exame",
+      data: todayStr,
+      horaInicial: "07:30",
+      horaFinal: "08:00",
+      status: "confirmado"
+    },
+    // Tomorrow
+    {
+      id: "app-3",
+      paciente: "Arthur Ramos",
+      doutor: "Dr. Vanessa",
+      especialidade: "Clínica Geral",
+      tipo: "Retorno",
+      data: tomorrowStr,
+      horaInicial: "10:30",
+      horaFinal: "11:00",
+      status: "agendado"
+    },
+    {
+      id: "app-5",
+      paciente: "Beatriz Oliveira",
+      doutor: "Dr. Marcos Paulo",
+      especialidade: "Pediatria",
+      tipo: "Consulta",
+      data: tomorrowStr,
+      horaInicial: "11:00",
+      horaFinal: "12:00",
+      status: "agendado"
+    },
+    {
+      id: "app-6",
+      paciente: "Daniel Costa",
+      doutor: "Dra. Elena Souza",
+      especialidade: "Obstetrícia",
+      tipo: "Consulta",
+      data: tomorrowStr,
+      horaInicial: "16:30",
+      horaFinal: "17:30",
+      status: "agendado"
+    },
+    {
+      id: "app-7",
+      paciente: "Fernanda Lima",
+      doutor: "Dr. Vanessa",
+      especialidade: "Clínica Geral",
+      tipo: "Exame",
+      data: tomorrowStr,
+      horaInicial: "14:00",
+      horaFinal: "14:30",
+      status: "confirmado"
+    }
+  ];
+
+  // Generate free slots
+  const allAppointments = [...initialAppointments];
+  [todayStr, tomorrowStr].forEach(date => {
+    doctors.forEach(doctor => {
+      const booked = allAppointments.filter(a => a.data === date && a.doutor === doctor.name);
+      const freeSlots = generateFreeSlots(doctor, date, booked);
+      allAppointments.push(...freeSlots);
+    });
+  });
+
   return {
-    doctors: [
-      {
-        id: "dr-marcos",
-        name: "Dr. Marcos Paulo",
-        specialty: "Pediatria",
-        startTime: "08:00",
-        endTime: "14:00",
-        breakTime: null,
-        breakDuration: 0
-      },
-      {
-        id: "dra-elena",
-        name: "Dra. Elena Souza",
-        specialty: "Obstetrícia",
-        startTime: "14:00",
-        endTime: "20:00",
-        breakTime: null,
-        breakDuration: 0
-      },
-      {
-        id: "dra-vanessa",
-        name: "Dr. Vanessa",
-        specialty: "Clínica Geral",
-        startTime: "10:00",
-        endTime: "16:00",
-        breakTime: "12:40",
-        breakDuration: 20
-      }
-    ],
+    doctors: doctors,
     specialties: [
       "Pediatria",
       "Obstetrícia",
@@ -108,52 +202,7 @@ export function generateDefaultDB(): DBStructure {
       "Urina Completa",
       "Eletrocardiograma"
     ],
-    appointments: [
-      {
-        id: "app-1",
-        paciente: "Bernardo Silva",
-        doutor: "Dr. Marcos Paulo",
-        especialidade: "Pediatria",
-        tipo: "Consulta",
-        data: todayStr, // Hoje
-        horaInicial: "09:00",
-        horaFinal: "10:00",
-        status: "agendado"
-      },
-      {
-        id: "app-2",
-        paciente: "Mariana Lins",
-        doutor: "Dra. Elena Souza",
-        especialidade: "Obstetrícia",
-        tipo: "Consulta",
-        data: todayStr, // Hoje
-        horaInicial: "15:00",
-        horaFinal: "16:00",
-        status: "confirmado"
-      },
-      {
-        id: "app-3",
-        paciente: "Arthur Ramos",
-        doutor: "Dr. Vanessa",
-        especialidade: "Clínica Geral",
-        tipo: "Retorno",
-        data: tomorrowStr, // Amanhã
-        horaInicial: "10:30",
-        horaFinal: "11:00",
-        status: "agendado"
-      },
-      {
-        id: "app-4",
-        paciente: "Carla Albuquerque",
-        doutor: null,
-        especialidade: null,
-        tipo: "Exame",
-        data: todayStr, // Hoje
-        horaInicial: "07:30",
-        horaFinal: "08:00",
-        status: "confirmado"
-      }
-    ]
+    appointments: allAppointments
   };
 }
 
@@ -163,6 +212,7 @@ export const DEFAULT_DB: DBStructure = generateDefaultDB();
 export function initDB(forceRefresh: boolean = false): DBStructure {
   try {
     const todayStr = getRelativeDate(0);
+    const tomorrowStr = getRelativeDate(1);
 
     if (!fs.existsSync(DB_PATH) || forceRefresh) {
       const defaultDb = generateDefaultDB();
@@ -173,12 +223,13 @@ export function initDB(forceRefresh: boolean = false): DBStructure {
     const content = fs.readFileSync(DB_PATH, 'utf-8');
     const data: DBStructure = JSON.parse(content);
 
-    // If appointments is missing, empty, or does not contain any appointment for today:
-    const hasTodayAppointment = Array.isArray(data.appointments) &&
-      data.appointments.some(a => typeof a.data === 'string' && a.data === todayStr);
+    // If appointments is missing, empty, or contains appointments for dates other than today or tomorrow:
+    const allAppointmentsValid = Array.isArray(data.appointments) &&
+      data.appointments.length > 0 &&
+      data.appointments.every(a => a.data === todayStr || a.data === tomorrowStr);
 
-    if (!hasTodayAppointment) {
-      console.log(`[DB] Atualizando agenda inicial com base na data de hoje (${todayStr})...`);
+    if (!allAppointmentsValid) {
+      console.log(`[DB] Atualizando agenda inicial com base na data de hoje (${todayStr}) e amanhã (${tomorrowStr})...`);
       const freshDb = generateDefaultDB();
       // Retain custom routeAuthConfig and tokenTtlSeconds if configured
       if (data.routeAuthConfig) freshDb.routeAuthConfig = data.routeAuthConfig;
@@ -189,7 +240,7 @@ export function initDB(forceRefresh: boolean = false): DBStructure {
 
     return data;
   } catch (err) {
-    console.error("Error reading DB file, resetting:", err);
+    console.error(`[DB] Error reading/initializing DB file at ${DB_PATH}:`, err);
     const defaultDb = generateDefaultDB();
     fs.writeFileSync(DB_PATH, JSON.stringify(defaultDb, null, 2), 'utf-8');
     return defaultDb;
@@ -201,7 +252,13 @@ export function readDB(): DBStructure {
 }
 
 export function writeDB(data: DBStructure): void {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    console.log(`[DB] Data written successfully to ${DB_PATH}`);
+  } catch (err) {
+    console.error(`[DB] Failed to write to ${DB_PATH}:`, err);
+    throw err;
+  }
 }
 
 // Convert "HH:MM" to minutes from 00:00
@@ -232,4 +289,41 @@ export function getDayOfWeek(dateStr: string): number {
   // Create date in local timezone context to get accurate day of the week
   const date = new Date(year, month - 1, day);
   return date.getDay();
+}
+
+export function generateFreeSlots(doctor: Doctor, dateStr: string, bookedAppointments: Appointment[]): Appointment[] {
+  const slots: Appointment[] = [];
+  const startMins = timeToMinutes(doctor.startTime);
+  const endMins = timeToMinutes(doctor.endTime);
+  const slotDuration = 30; // 30 mins
+
+  for (let m = startMins; m + slotDuration <= endMins; m += slotDuration) {
+    const start = minutesToTime(m);
+    const end = minutesToTime(m + slotDuration);
+
+    // Skip if break time overlaps
+    if (doctor.breakTime && doctor.breakDuration) {
+      const breakStart = timeToMinutes(doctor.breakTime);
+      const breakEnd = breakStart + doctor.breakDuration;
+      if (isOverlapping(start, end, minutesToTime(breakStart), minutesToTime(breakEnd))) {
+        continue;
+      }
+    }
+
+    const isBooked = bookedAppointments.some(a => isOverlapping(start, end, a.horaInicial, a.horaFinal));
+
+    if (!isBooked) {
+      slots.push({
+        id: `slot-${doctor.id}-${dateStr}-${start.replace(':', '')}`,
+        paciente: 'Vago',
+        doutor: doctor.name,
+        tipo: 'Consulta',
+        data: dateStr,
+        horaInicial: start,
+        horaFinal: end,
+        status: 'livre'
+      });
+    }
+  }
+  return slots;
 }
