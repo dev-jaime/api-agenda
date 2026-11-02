@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { 
   readDB, 
   writeDB, 
+  initDB,
   Doctor, 
   Appointment, 
   timeToMinutes, 
@@ -268,15 +269,10 @@ apiRouter.post('/config/auth', (req: Request, res: Response) => {
 // Reset database to default
 apiRouter.post('/db/reset', (req: Request, res: Response) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const dbPath = path.resolve(__dirname, '../../agenda.json');
-    if (fs.existsSync(dbPath)) {
-      fs.unlinkSync(dbPath);
-    }
-    const db = readDB();
+    const db = initDB(true);
     res.json({ message: 'Database reset to default settings successfully.', data: db });
   } catch (error: any) {
+    console.error('Failed to reset database:', error);
     res.status(500).json({ error: 'Failed to reset database', details: error.message });
   }
 });

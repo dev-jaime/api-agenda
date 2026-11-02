@@ -668,11 +668,24 @@ export default function App() {
     setLoading(true);
     try {
       const res = await fetch('/api/db/reset', { method: 'POST' });
-      if (res.ok) {
-        showBanner("success", "Banco de dados resetado com sucesso para as configurações padrão.");
+      let renderSuccess = false;
+
+      // Sync reset with Render server if configured
+      if (apiHostUrl && apiHostUrl.startsWith('http')) {
+        try {
+          const rRes = await fetch(`${apiHostUrl.replace(/\/+$/, '')}/api/db/reset`, { method: 'POST' });
+          if (rRes.ok) renderSuccess = true;
+        } catch (e) {
+          console.warn("Não foi possível resetar o Render remoto:", e);
+        }
+      }
+
+      if (res.ok || renderSuccess) {
+        showBanner("success", "Banco de dados resetado com sucesso para os dados padrão!");
         fetchData();
       } else {
-        showBanner("error", "Erro ao resetar o banco de dados.");
+        const data = await res.json().catch(() => ({}));
+        showBanner("error", data.details || data.message || "Erro ao resetar o banco de dados.");
       }
     } catch (err: any) {
       showBanner("error", "Falha de rede ao tentar resetar.");

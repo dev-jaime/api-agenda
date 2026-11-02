@@ -1,0 +1,722 @@
+{
+  "doctors": [
+    {
+      "id": "dr-marcos",
+      "name": "Dr. Marcos Paulo",
+      "specialty": "Pediatria",
+      "startTime": "08:00",
+      "endTime": "14:00",
+      "breakTime": null,
+      "breakDuration": 0
+    },
+    {
+      "id": "dra-elena",
+      "name": "Dra. Elena Souza",
+      "specialty": "Obstetrícia",
+      "startTime": "14:00",
+      "endTime": "20:00",
+      "breakTime": null,
+      "breakDuration": 0
+    },
+    {
+      "id": "dra-vanessa",
+      "name": "Dr. Vanessa",
+      "specialty": "Clínica Geral",
+      "startTime": "10:00",
+      "endTime": "16:00",
+      "breakTime": "12:40",
+      "breakDuration": 20
+    }
+  ],
+  "specialties": [
+    "Pediatria",
+    "Obstetrícia",
+    "Clínica Geral"
+  ],
+  "exams": [
+    "Hemograma",
+    "Ultrassonografia",
+    "Raio-X",
+    "Urina Completa",
+    "Eletrocardiograma"
+  ],
+  "appointments": [
+    {
+      "id": "app-1",
+      "paciente": "Bernardo Silva",
+      "doutor": "Dr. Marcos Paulo",
+      "especialidade": "Pediatria",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "09:00",
+      "horaFinal": "10:00",
+      "status": "agendado"
+    },
+    {
+      "id": "app-2",
+      "paciente": "Mariana Lins",
+      "doutor": "Dra. Elena Souza",
+      "especialidade": "Obstetrícia",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "15:00",
+      "horaFinal": "16:00",
+      "status": "confirmado"
+    },
+    {
+      "id": "app-4",
+      "paciente": "Carla Albuquerque",
+      "doutor": null,
+      "especialidade": null,
+      "tipo": "Exame",
+      "data": "2026-11-01",
+      "horaInicial": "07:30",
+      "horaFinal": "08:00",
+      "status": "confirmado"
+    },
+    {
+      "id": "app-3",
+      "paciente": "Arthur Ramos",
+      "doutor": "Dr. Vanessa",
+      "especialidade": "Clínica Geral",
+      "tipo": "Retorno",
+      "data": "2026-11-02",
+      "horaInicial": "10:30",
+      "horaFinal": "11:00",
+      "status": "agendado"
+    },
+    {
+      "id": "app-5",
+      "paciente": "Beatriz Oliveira",
+      "doutor": "Dr. Marcos Paulo",
+      "especialidade": "Pediatria",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "11:00",
+      "horaFinal": "12:00",
+      "status": "agendado"
+    },
+    {
+      "id": "app-6",
+      "paciente": "Daniel Costa",
+      "doutor": "Dra. Elena Souza",
+      "especialidade": "Obstetrícia",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "16:30",
+      "horaFinal": "17:30",
+      "status": "agendado"
+    },
+    {
+      "id": "app-7",
+      "paciente": "Fernanda Lima",
+      "doutor": "Dr. Vanessa",
+      "especialidade": "Clínica Geral",
+      "tipo": "Exame",
+      "data": "2026-11-02",
+      "horaInicial": "14:00",
+      "horaFinal": "14:30",
+      "status": "confirmado"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-0800",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "08:00",
+      "horaFinal": "08:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-0830",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "08:30",
+      "horaFinal": "09:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1000",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "10:00",
+      "horaFinal": "10:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1030",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "10:30",
+      "horaFinal": "11:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1100",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "11:00",
+      "horaFinal": "11:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1130",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "11:30",
+      "horaFinal": "12:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1200",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "12:00",
+      "horaFinal": "12:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1230",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "12:30",
+      "horaFinal": "13:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1300",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "13:00",
+      "horaFinal": "13:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-01-1330",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "13:30",
+      "horaFinal": "14:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1400",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "14:00",
+      "horaFinal": "14:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1430",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "14:30",
+      "horaFinal": "15:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1600",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "16:00",
+      "horaFinal": "16:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1630",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "16:30",
+      "horaFinal": "17:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1700",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "17:00",
+      "horaFinal": "17:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1730",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "17:30",
+      "horaFinal": "18:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1800",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "18:00",
+      "horaFinal": "18:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1830",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "18:30",
+      "horaFinal": "19:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1900",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "19:00",
+      "horaFinal": "19:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-01-1930",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "19:30",
+      "horaFinal": "20:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1000",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "10:00",
+      "horaFinal": "10:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1030",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "10:30",
+      "horaFinal": "11:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1100",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "11:00",
+      "horaFinal": "11:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1130",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "11:30",
+      "horaFinal": "12:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1200",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "12:00",
+      "horaFinal": "12:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1300",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "13:00",
+      "horaFinal": "13:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1330",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "13:30",
+      "horaFinal": "14:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1400",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "14:00",
+      "horaFinal": "14:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1430",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "14:30",
+      "horaFinal": "15:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1500",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "15:00",
+      "horaFinal": "15:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-01-1530",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-01",
+      "horaInicial": "15:30",
+      "horaFinal": "16:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-0800",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "08:00",
+      "horaFinal": "08:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-0830",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "08:30",
+      "horaFinal": "09:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-0900",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "09:00",
+      "horaFinal": "09:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-0930",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "09:30",
+      "horaFinal": "10:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1000",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "10:00",
+      "horaFinal": "10:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1030",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "10:30",
+      "horaFinal": "11:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1200",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "12:00",
+      "horaFinal": "12:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1230",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "12:30",
+      "horaFinal": "13:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1300",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "13:00",
+      "horaFinal": "13:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dr-marcos-2026-11-02-1330",
+      "paciente": "Vago",
+      "doutor": "Dr. Marcos Paulo",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "13:30",
+      "horaFinal": "14:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1400",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "14:00",
+      "horaFinal": "14:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1430",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "14:30",
+      "horaFinal": "15:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1500",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "15:00",
+      "horaFinal": "15:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1530",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "15:30",
+      "horaFinal": "16:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1600",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "16:00",
+      "horaFinal": "16:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1730",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "17:30",
+      "horaFinal": "18:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1800",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "18:00",
+      "horaFinal": "18:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1830",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "18:30",
+      "horaFinal": "19:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1900",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "19:00",
+      "horaFinal": "19:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-elena-2026-11-02-1930",
+      "paciente": "Vago",
+      "doutor": "Dra. Elena Souza",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "19:30",
+      "horaFinal": "20:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1000",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "10:00",
+      "horaFinal": "10:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1100",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "11:00",
+      "horaFinal": "11:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1130",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "11:30",
+      "horaFinal": "12:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1200",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "12:00",
+      "horaFinal": "12:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1300",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "13:00",
+      "horaFinal": "13:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1330",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "13:30",
+      "horaFinal": "14:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1430",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "14:30",
+      "horaFinal": "15:00",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1500",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "15:00",
+      "horaFinal": "15:30",
+      "status": "livre"
+    },
+    {
+      "id": "slot-dra-vanessa-2026-11-02-1530",
+      "paciente": "Vago",
+      "doutor": "Dr. Vanessa",
+      "tipo": "Consulta",
+      "data": "2026-11-02",
+      "horaInicial": "15:30",
+      "horaFinal": "16:00",
+      "status": "livre"
+    }
+  ]
+}
