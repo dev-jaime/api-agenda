@@ -268,6 +268,11 @@ export default function App() {
   const [tokenTtl, setTokenTtl] = useState<number>(1800);
   const [pgQueryParams, setPgQueryParams] = useState<string>('');
 
+  // Render Uptime / Hibernation timer (15 minutes countdown)
+  const [serverStartTimestamp, setServerStartTimestamp] = useState<number>(() => Date.now());
+  const [secondsSinceStart, setSecondsSinceStart] = useState<number>(0);
+
+
   // Helper to format TTL seconds to human-readable label
   const formatTtlLabel = (seconds: number) => {
     if (seconds === 60) return '1 min';
@@ -355,6 +360,10 @@ export default function App() {
         exams: examData,
         appointments: await (await fetch('/api/appointments', { headers: { 'X-App-Admin': 'agenda_admin_internal' } })).json()
       });
+
+      // Reset uptime timer on successful sync
+      setServerStartTimestamp(Date.now());
+      setSecondsSinceStart(0);
 
     } catch (err) {
       console.error("Erro ao buscar dados do servidor:", err);
@@ -501,9 +510,10 @@ export default function App() {
     fetchData();
   }, []);
 
-  // Periodic live countdown for active tokens so user can watch expiry in real time
+  // Periodic live countdown for active tokens and server uptime timer
   useEffect(() => {
     const timer = setInterval(() => {
+      setSecondsSinceStart(Math.floor((Date.now() - serverStartTimestamp) / 1000));
       setCredentials(prev => {
         if (!prev || !prev.activeTokens || prev.activeTokens.length === 0) return prev;
         const updated = prev.activeTokens
@@ -513,7 +523,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [serverStartTimestamp]);
 
   // Update playground curl preview whenever options change
   useEffect(() => {
@@ -1008,16 +1018,22 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={fetchData}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 transition-colors rounded-lg"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Sincronizar
-          </button>
+          <div className="flex flex-col items-end gap-0.5">
+            <button 
+              onClick={fetchData}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 transition-colors rounded-lg"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Sincronizar
+            </button>
+            <span className="text-4xs font-mono text-slate-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800/80" title="Tempo de atividade desde a inicialização / último sync">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              ⏱️ Ativo: {Math.floor(secondsSinceStart / 60)}m {String(secondsSinceStart % 60).padStart(2, '0')}s
+            </span>
+          </div>
           <button 
             onClick={handleResetDB}
-            className="px-3 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors rounded-lg shadow-md"
+            className="px-3 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors rounded-lg shadow-md h-fit"
           >
             Resetar Base
           </button>
