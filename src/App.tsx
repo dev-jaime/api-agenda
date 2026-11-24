@@ -1026,9 +1026,14 @@ export default function App() {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Sincronizar
             </button>
-            <span className="text-4xs font-mono text-slate-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800/80" title="Tempo de atividade desde a inicialização / último sync">
+            <span className="text-4xs font-mono text-slate-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded border border-slate-800/80" title="Tempo restante antes da provável hibernação do Render (15 minutos)">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              ⏱️ Ativo: {Math.floor(secondsSinceStart / 60)}m {String(secondsSinceStart % 60).padStart(2, '0')}s
+              ⏱️ {(() => {
+                const remaining = Math.max(0, 900 - secondsSinceStart);
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                return `${m}m ${String(s).padStart(2, '0')}s`;
+              })()}
             </span>
           </div>
           <button 
